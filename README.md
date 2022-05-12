@@ -12,8 +12,8 @@ protocollo di strato di trasporto).
 
 • L’upload di un file sul server
 
-# La comunicazione tra client e server deve avvenire tramite un opportuno protocollo. Il protocollo di comunicazione
-deve prevedere lo scambio di due tipi di messaggi:
+# La comunicazione tra client e server deve avvenire tramite un opportuno protocollo. 
+Il protocollo di comunicazionedeve prevedere lo scambio di due tipi di messaggi:
 • messaggi di comando: vengono inviati dal client al server per richiedere l’esecuzione delle diverse operazioni
 
 • messaggi di risposta: vengono inviati dal server al client in risposta ad un comando con l’esito dell’operazione.
