@@ -31,12 +31,16 @@ class Server:
         self.error_flag = 0
         return metadata
 
-    def download(self, file):
+    def download(self, file, client):
         if file in os.listdir():
             print('\n\r Sending the file ' % file % ' to the destination')
-            input_file = open('file', 'rb')
-            metadata = pickle.load(input_file)
-            input_file.close()
+            metadata = ''
+            buffer_size = 8192
+            with open(file, 'rb') as handle:
+                for line in handle:
+                    byte = handle.read(buffer_size)
+                    self.send_metadata(byte, client)
+                    time.sleep(0.001)
             size = os.path.getsize(file)
             self.error_flag = 0
             return {metadata, size}
@@ -47,7 +51,7 @@ class Server:
         if file in os.listdir():
             print('\n\r Upload ' % file % ' in the current directory')
             with open('filename.pickle', 'wb') as handle:
-                pickle.dump(file, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.loads(file, handle, protocol=pickle.HIGHEST_PROTOCOL)
             self.error_flag = 0
         else:
             self.error_flag = 1
@@ -87,11 +91,7 @@ class Server:
                 else:
                     break
             elif operation == Operation.DOWNLOAD.value:
-                metadata, size = self.download(file_name)
-                self.send_header(client, operation, file_name, size)
-                response, client = self.socket.recvfrom(4096)
-                status_header = json.loads(response.decode())
-                status = "operation" in status_header
+                
                 if status == Operation.ACK.value:
                     self.send_metadata(metadata, client) 
                 else:
