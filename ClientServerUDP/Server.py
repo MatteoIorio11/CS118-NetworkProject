@@ -26,7 +26,7 @@ class Server:
     def get_files(self, destination):
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir()
-        metadata = ''.join([ str(directory).join("\n") for directory in list_directories if os.path.isfile(directory)])
+        metadata = ''.join([ (str(directory)+("\n")) for directory in list_directories if os.path.isfile(directory)])
         print('\n\r Sending all the files in the Directory...')
         self.error_flag = 0
         return metadata
