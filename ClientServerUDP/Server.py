@@ -26,7 +26,7 @@ class Server:
     def get_files(self, destination):
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir()
-        metadata = ''.join([ str(directory).join("\n") for directory in list_directories if os.path.isfile(directory)])
+        metadata = ''.join([ str(directory).__add__("\n") for directory in list_directories if os.path.isfile(directory)])
         print('\n\r Sending all the files in the Directory...')
         self.error_flag = 0
         return metadata
@@ -43,10 +43,11 @@ class Server:
         else:
             self.error_flag = 1
 
-    def upload(self, file):
+    def upload(self, file, metada_files):
         if file in os.listdir():
             print('\n\r Upload ' % file % ' in the current directory')
-            output_file = open('file', 'wb')
+            with open('filename.pickle', 'wb') as handle:
+                pickle.dump(file, handle, protocol=pickle.HIGHEST_PROTOCOL)
             self.error_flag = 0
         else:
             self.error_flag = 1
@@ -87,8 +88,14 @@ class Server:
                 status = "operation" in status_header
                 self.send_metadata(metadata, client) if status == Operation.ACK.value else break
             elif operation == Operation.UPLOAD.value:
-                metadata, size = self.upload(file_name)
+                size = "size" in header
+                self.send_header(client, Operation.ACK.value, file_name, size)
+
+                metadata, size = self.upload(file_name, metadata_files)
                 self.send_header(client, operation, file_name, size)
+                status_header = json.loads(message.decode())
+                status = "operation" in status_header
+                self.send_metadata(metadata, client) if status == Operation.ACK.value else break
 
 
 
