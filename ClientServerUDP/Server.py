@@ -34,20 +34,14 @@ class Server:
             error_message = '\n\r Error : The selected file does not exist in the path directory.'
             self.socket.sendto(error_message.encode(), destination)
 
+    def upload(self, file, destination):
+        if file in os.listdir():
+            error_message = '\n\r Error : The selected file does not exist in the path directory.'
+            self.socket.sendto(error_message.encode(), destination)
+        else:
+            print('\n\r Upload the sended file')
+            output_file = open('file', 'wb')
 
-# Creiamo il socket
-    def ciclo(self):
-    while True:
-        print('\n\r waiting to receive message...')
-        data, address = sock.recvfrom(4096)
-        print('received %s bytes from %s' % (len(data), address))
-        print(data.decode('utf8'))
-
-        if data:
-            data1 = 'Programmazione di Reti'
-            time.sleep(2)
-            sent = sock.sendto(data1.encode(), address)
-            print('sent %s bytes back to %s' % (sent, address))
 
 
 
