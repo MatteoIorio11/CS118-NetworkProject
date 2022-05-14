@@ -18,7 +18,7 @@ class Client:
     def get_files_on_server(self):
         files = self.send(self.create_header(Operation.GET_FILES.value, "", True))
         
-        return json.loads(files).decode('utf8')
+        return json.loads(files.decode())['metadata']
         
     def download_file(self, file_name):
         response = self.send(data)
@@ -29,9 +29,9 @@ class Client:
         
         print('waiting to receive from')
         data, server = self.sock.recvfrom(4096)
-        data = json.loads(data).decode('utf8')
+        data = json.loads(data.decode('utf8'))
         if(data['status'] == True):
-            self.sock.sendto(self.create_header(Operation.ACK, "", True).encode(), (self.server_address, self.port))
+            self.sock.sendto(self.create_header(Operation.ACK.value, "", True).encode(), (self.server_address, self.port))
             response, server = self.sock.recvfrom(4096)
         else:
             raise Exception("Failed")
@@ -49,7 +49,7 @@ try:
     client.set_server_adress('localhost', 20000)
     data = client.get_files_on_server()
     time.sleep(1)
-    print ("aa", data)
+    print (data)
 except Exception as info:
     print(info)
 finally:
