@@ -26,7 +26,7 @@ class Server:
     def get_files(self, destination):
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir()
-        metadata = ''.join([ str(directory).__add__("\n") for directory in list_directories if os.path.isfile(directory)])
+        metadata = ''.join([ (str(directory)+("\n")) for directory in list_directories if os.path.isfile(directory)])
         print('\n\r Sending all the files in the Directory...')
         self.error_flag = 0
         return metadata
@@ -61,11 +61,11 @@ class Server:
                   "file_name" : file_name,
                   "status" : False if self.error_flag == 1 else True,
                   "size" : size}
-        self.send_package(destination, json.dump(header))
+        self.send_package(destination, json.dumps(header))
 
     def send_metadata(self, metadata, destination):
         metadata = {"metadata": metadata}
-        self.send_package(destination, json.dump(metadata))
+        self.send_package(destination, json.dumps(metadata))
 
     def launch_server(self):
         while True:
@@ -79,23 +79,31 @@ class Server:
                 self.send_header(client, operation, "", 0)
                 message, client = self.socket.recvfrom(4090)
                 status_header = json.loads(message.decode())
-                status = "operation" in status_header
-                self.send_metadata(metadata, client) if status == Operation.ACK.value else break
+                print(status_header)
+                status = status_header['operation']
+                if status == Operation.ACK.value:   
+                    print(metadata)
+                    self.send_metadata(metadata, client) 
+                else:
+                    break
             elif operation == Operation.DOWNLOAD.value:
                 metadata, size = self.download(file_name)
                 self.send_header(client, operation, file_name, size)
-                status_header = json.loads(message.decode())
+                response, client = self.socket.recvfrom(4096)
+                status_header = json.loads(response.decode())
                 status = "operation" in status_header
-                self.send_metadata(metadata, client) if status == Operation.ACK.value else break
+                if status == Operation.ACK.value:
+                    self.send_metadata(metadata, client) 
+                else:
+                    break
+                
             elif operation == Operation.UPLOAD.value:
                 size = "size" in header
                 self.send_header(client, Operation.ACK.value, file_name, size)
-
-                metadata, size = self.upload(file_name, metadata_files)
-                self.send_header(client, operation, file_name, size)
-                status_header = json.loads(message.decode())
-                status = "operation" in status_header
-                self.send_metadata(metadata, client) if status == Operation.ACK.value else break
+                response, client = self.socket.recvfrom(4096)
+                metadata_upload = json.loads(response.decode())
+                self.upload(file_name,metadata_upload['metadata'])
+                self.send_header(client, Operation.ACK.value, file_name, size)
 
 
 
