@@ -1,4 +1,6 @@
 import socket as sk
+import time
+
 from Operation import Operation
 import os
 import pickle
@@ -47,9 +49,17 @@ class Server:
         else:
             self.error_flag = 1
 
-    def send(self, metadata, client, operation):
-        header = {"operation" : operation, "status" : self.error_flag == 1 ? False : True }
-        message = {"metada" : metadata}
+    def send_package(self, destination, data):
+        self.socket.sendto(data.encode(), destination)
+        time.sleep(1)
+
+    def send(self, metadata, destination, operation, file_name):
+        header = {"operation" : operation,
+                  "file_name" : file_name,
+                  "status" : False if self.error_flag == 1 else True}
+        self.send_package(destination, header)
+        message = {"metadata": metadata}
+        self.send_package(destination, message)
 
     def launch_server(self):
         while True:
@@ -57,7 +67,7 @@ class Server:
             operation = message.decode().split()
             if operation == Operation.GET_FILES:
                 metadata = self.get_files(client)
-                self.send(metadata, client)
+                self.send(metadata, client, operation, "")
 
 
 
