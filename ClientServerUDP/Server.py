@@ -1,47 +1,63 @@
-import socket
-import time
+import socket as sk
+from Operation import Operation
 import os
 import pickle
 
+
 class Server:
     port = 0
-    address = 0
+    address = ''
     socket = 0
+    error_flag = 0
+
     def __init__(self, port , address):
         self.port = port
-        self.address = address
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.address = str(address)
+        self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
 
-    def open_connection(self):
-        server_address = (self.addres, self.port)
+    def start_server(self):
+        server_address = (self.address, self.port)
         print('\n\r starting up the server on ip : %s  and port : %s' % server_address)
         self.socket.bind(server_address)
+        self.launch_server()
 
     def get_files(self, destination):
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir()
-        directories = ''.join([ str(directory) for directory in list_directories if os.path.isfile(directory)])
+        metadata = ''.join([ str(directory) for directory in list_directories if os.path.isfile(directory)])
         print('\n\r Sending all the files in the Directory...')
-        self.socket.sendto(directories.encode(), destination)
+        self.error_flag = 0
+        return metadata
 
     def download(self, file, destination):
         if file in os.listdir():
+            print('\n\r Sending the file ' % file % ' to the destination')
             input_file = open('file', 'rb')
             file_content = pickle.load(input_file)
             input_file.close()
-
+            self.error_flag = 0
         else:
-            error_message = '\n\r Error : The selected file does not exist in the path directory.'
-            self.socket.sendto(error_message.encode(), destination)
+            self.error_flag = 1
 
     def upload(self, file, destination):
         if file in os.listdir():
-            error_message = '\n\r Error : The selected file does not exist in the path directory.'
-            self.socket.sendto(error_message.encode(), destination)
-        else:
-            print('\n\r Upload the sended file')
+            print('\n\r Upload ' % file % ' in the current directory')
             output_file = open('file', 'wb')
+            self.error_flag = 0
+        else:
+            self.error_flag = 1
 
+    def send(self, metadata, client, operation):
+        header = {"operation" : operation, "status" : self.error_flag == 1 ? False : True }
+        message = {"metada" : metadata}
+
+    def launch_server(self):
+        while True:
+            message, client = self.socket.recvfrom(4096)
+            operation = message.decode().split()
+            if operation == Operation.GET_FILES:
+                metadata = self.get_files(client)
+                self.send(metadata, client)
 
 
 

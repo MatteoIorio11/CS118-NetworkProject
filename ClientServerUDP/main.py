@@ -1,10 +1,11 @@
 
 
-import Server as server
+import Server
 
 
 def main():
-    socket = server.open_connection()
+    server = Server('localhost', 10000)
+
 
 
 if __name__ == "__main__":
