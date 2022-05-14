@@ -57,16 +57,16 @@ class Server:
         header = {"operation" : operation,
                   "file_name" : file_name,
                   "status" : False if self.error_flag == 1 else True}
-        self.send_package(destination, header)
+        self.send_package(header, json.dump(header))
         message = {"metadata": metadata}
-        self.send_package(destination, message)
+        self.send_package(destination, json.dump(message))
 
     def launch_server(self):
         while True:
             message, client = self.socket.recvfrom(4096)
             header = json.load(message.decode())
             operation = "operation" in header
-            if operation == Operation.GET_FILES:
+            if operation == Operation.GET_FILES.value:
                 metadata = self.get_files(client)
                 self.send(metadata, client, operation, "")
 
