@@ -26,22 +26,24 @@ class Server:
     def get_files(self, destination):
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir()
-        metadata = ''.join([ str(directory) for directory in list_directories if os.path.isfile(directory)])
+        metadata = ''.join([ str(directory).join("\n") for directory in list_directories if os.path.isfile(directory)])
         print('\n\r Sending all the files in the Directory...')
         self.error_flag = 0
         return metadata
 
-    def download(self, file, destination):
+    def download(self, file):
         if file in os.listdir():
             print('\n\r Sending the file ' % file % ' to the destination')
             input_file = open('file', 'rb')
-            file_content = pickle.load(input_file)
+            metadata = pickle.load(input_file)
             input_file.close()
+            size = os.path.getsize(file)
             self.error_flag = 0
+            return {metadata, size}
         else:
             self.error_flag = 1
 
-    def upload(self, file, destination):
+    def upload(self, file):
         if file in os.listdir():
             print('\n\r Upload ' % file % ' in the current directory')
             output_file = open('file', 'wb')
@@ -53,24 +55,40 @@ class Server:
         self.socket.sendto(data.encode(), destination)
         time.sleep(1)
 
-    def send(self, metadata, destination, operation, file_name):
+    def send_header(self, destination, operation, file_name, size):
         header = {"operation" : operation,
                   "file_name" : file_name,
-                  "status" : False if self.error_flag == 1 else True}
-        self.send_package(header, json.dump(header))
-        message = {"metadata": metadata}
-        self.send_package(destination, json.dump(message))
+                  "status" : False if self.error_flag == 1 else True,
+                  "size" : size}
+        self.send_package(destination, json.dump(header))
+
+    def send_metadata(self, metadata, destination):
+        metadata = {"metadata": metadata}
+        self.send_package(destination, json.dump(metadata))
 
     def launch_server(self):
         while True:
             message, client = self.socket.recvfrom(4096)
-            header = json.load(message.decode())
+            header = json.loads(message.decode())
             operation = "operation" in header
-            #header = json.load(message.decode('utf8'))
-            #operation = 1
+            file_name = "file_name" in header
+
             if operation == Operation.GET_FILES.value:
                 metadata = self.get_files(client)
-                self.send(metadata, client, operation, "")
+                self.send_header(client, operation, "", 0)
+                message, client = self.socket.recvfrom(4090)
+                status_header = json.loads(message.decode())
+                status = "operation" in status_header
+                self.send_metadata(metadata, client) if status == Operation.ACK.value else break
+            elif operation == Operation.DOWNLOAD.value:
+                metadata, size = self.download(file_name)
+                self.send_header(client, operation, file_name, size)
+                status_header = json.loads(message.decode())
+                status = "operation" in status_header
+                self.send_metadata(metadata, client) if status == Operation.ACK.value else break
+            elif operation == Operation.UPLOAD.value:
+                metadata, size = self.upload(file_name)
+                self.send_header(client, operation, file_name, size)
 
 
 
