@@ -18,7 +18,7 @@ class Server:
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
 
     def start_server(self):
-        server_address = (self.address, self.port)
+        server_address = ('localhost', 20000)
         print('\n\r starting up the server on ip : %s  and port : %s' % server_address)
         self.socket.bind(server_address)
         self.launch_server()
@@ -66,6 +66,8 @@ class Server:
             message, client = self.socket.recvfrom(4096)
             header = json.load(message.decode())
             operation = "operation" in header
+            #header = json.load(message.decode('utf8'))
+            #operation = 1
             if operation == Operation.GET_FILES.value:
                 metadata = self.get_files(client)
                 self.send(metadata, client, operation, "")
