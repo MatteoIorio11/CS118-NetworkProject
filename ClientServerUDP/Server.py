@@ -1,6 +1,6 @@
 import socket as sk
 import time
-
+import json
 from Operation import Operation
 import os
 import pickle
@@ -64,7 +64,8 @@ class Server:
     def launch_server(self):
         while True:
             message, client = self.socket.recvfrom(4096)
-            operation = message.decode().split()
+            header = json.load(message.decode())
+            operation = "operation" in header
             if operation == Operation.GET_FILES:
                 metadata = self.get_files(client)
                 self.send(metadata, client, operation, "")
