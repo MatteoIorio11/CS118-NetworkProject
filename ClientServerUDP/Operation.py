@@ -6,3 +6,5 @@ class Operation(Enum):
     DOWNLOAD = 2
     UPLOAD = 3
     EXIT = 4
+    ACK = 5
+
