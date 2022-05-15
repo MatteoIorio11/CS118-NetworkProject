@@ -109,24 +109,23 @@ class Server:
     # Return
     # This method write the metadata in input inside the new file named : file.
     def upload(self, file, message, client):
+        print(message)
         print("UPLOAD")
-        if file in os.listdir(self.path):
-            self.error_flag = 1
-            HeaderBuilder.build_header(client, Operation.ERROR.value, False if self.error_flag == 1 else True, "", 0,
-                                       "The input file does not exist in the directory".encode())
-        else:
-            buffer_reader_size = 12000
-            with open(os.path.join(self.path, file), 'wb') as f:
-                while True:
-                    data = self.socket.recv(buffer_reader_size)
-                    data_json = json.loads(data.decode())
-                    if not data_json['status']:
-                        raise Exception(base64.b64decode(data_json['metadata']))
-                    if data_json['operation'] == Operation.END_FILE.value:
-                        break
-                    file = base64.b64decode(data_json['metadata'])
-                    f.write(file)
-            self.error_flag = 0
+        
+        buffer_reader_size = 12000
+        with open(os.path.join(self.path, file), 'wb') as f:
+            data = message
+            while True:
+                data_json = json.loads(data.decode())
+                print(data_json)
+                if not data_json['status']:
+                    raise Exception(base64.b64decode(data_json['metadata']))
+                if data_json['operation'] == Operation.END_FILE.value:
+                    break
+                file = base64.b64decode(data_json['metadata'])
+                f.write(file)
+                data = self.socket.recv(buffer_reader_size)
+        self.error_flag = 0
 
     # Argument : self
     # Argument : destination
@@ -163,5 +162,5 @@ class Server:
                 self.download(file_name,client)
                 
             elif operation == Operation.UPLOAD.value:
-                size = 'null'
+                self.upload(file_name, message, client)
 

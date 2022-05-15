@@ -49,7 +49,7 @@ class Client:
                 while byte:
                     header = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, buffersize, byte)  # Send the read bytes to the Client
                     self.send(header)
-                    time.sleep(0.0001)
+                    time.sleep(0.01)
                     byte = handle.read(buffersize)   # Read a buffer size
             header = HeaderBuilder.build_header( Operation.END_FILE.value, True, "", 0, "".encode())  # Send the bytes read to the Client
             self.send(header)
@@ -61,6 +61,7 @@ class Client:
     def send(self, message):
         print ('sending "%s"' % message)
         self.sock.sendto(message.encode(), (self.server_address, self.port))
+        time.sleep(0.01)
 
     def close_connection(self):
         self.sock.close()
@@ -72,7 +73,7 @@ def main():
     try:
 
         client.set_server_adress('localhost', 20000)
-        client.upload("test.txt")
+        client.upload("test.pdf")
         time.sleep(1)
     except Exception as info:
         print(info)
