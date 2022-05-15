@@ -45,6 +45,11 @@ class Server:
     time_to_sleep = 0                           # How much time the Server has to sleep before to send another package
     socket = 0                                  # Server's socket
     path = os.path.join(os.getcwd(), 'Server')  #
+    menu = " Hi, This is the UDP Server. Here are the possible operations that you can do: " \
+           " 1) Get the list of all my files" \
+           " 2) Download a file from my list files" \
+           " 3) Upload your file in my directory" \
+           " 4) EXIT"
 
     # Define the constructor of the Server
     def __init__(self):
@@ -135,6 +140,10 @@ class Server:
         self.socket.sendto(data.encode(), destination)
         time.sleep(self.time_to_sleep)
 
+    def send_menu(self, destination):
+        header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, self.menu.encode())
+        self.send_package(destination, header)
+
     # Argument : self
     # Main method of the Server. Here is where all the Client's request are managed
     # For every message received the served send an Operation.ACK to the Client.
@@ -146,14 +155,21 @@ class Server:
             operation = header['operation']  # Get the Operations requested
             file_name = header['file_name']  # Get the file name
             # First Operations : GET FILES
-            if operation == Operation.GET_FILES.value:
+
+            if operation == Operation.OPEN_CONNECTION.value:
+                self.send_menu(client)
+
+            elif operation == Operation.GET_FILES.value:
                 self.get_files(client)
+                self.send_menu(client)
 
             elif operation == Operation.DOWNLOAD.value:
                 self.download(file_name, client)
-                
+                self.send_menu(client)
+
             elif operation == Operation.UPLOAD.value:
                 self.upload(file_name, header, client)
+                self.send_menu(client)
 
             elif operation == Operation.EXIT.value:
                 self.socket.close()
