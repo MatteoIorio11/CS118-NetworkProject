@@ -3,10 +3,13 @@ import time
 import json
 import base64
 import os
-from HeaderBuilder import HeaderBuilder
-from Operation import Operation
+from ClientServerUDP.HeaderBuilder import HeaderBuilder
+from ClientServerUDP.Operation import Operation
+
 
 class Client:
+    server_address = ''
+    port = 0
     def __init__(self):
         self.sock = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
     
@@ -19,7 +22,7 @@ class Client:
         self.send(header)
         data = self.sock.recv()
         data_json = json.loads(data.decode())
-        if(data_json['status'] == False):
+        if not data_json['status'] :
             raise Exception(base64.b64decode(data_json['metadata']))
         files = base64.b64decode(data_json['metadata'])
         
@@ -28,12 +31,12 @@ class Client:
     def download_file(self, file_name):
         header = HeaderBuilder.build_header(Operation.DOWNLOAD.value, True, file_name, 0, "".encode())
         self.send(header)
-        buffersize = 12000         
+        buffer_size = 12_000
         with open(file_name,'wb') as f:
-           while True:
-                data = self.sock.recv(buffersize)
+            while True:
+                data = self.sock.recv(buffer_size)
                 data_json = json.loads(data.decode())
-                if(data_json['status'] == False):
+                if not data_json['status']:
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
                     break
@@ -41,23 +44,24 @@ class Client:
                 f.write(file)
     
     def upload(self, file):
-        buffersize = 8192
+        buffer_size = 8192
         if file in os.listdir(os.getcwd()):
             print('\n\r Sending the file %s to the destination', str(file))
             with open(os.path.join(os.getcwd(), file), 'rb') as handle:
-                byte = handle.read(buffersize)   # Read a buffer size
+                byte = handle.read(buffer_size)   # Read a buffer size
                 while byte:
-                    header = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, buffersize, byte)  # Send the read bytes to the Client
+                    header = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, buffer_size, byte)  # Send the read bytes to the Client
                     self.send(header)
                     time.sleep(0.01)
-                    byte = handle.read(buffersize)   # Read a buffer size
-            header = HeaderBuilder.build_header( Operation.END_FILE.value, True, "", 0, "".encode())  # Send the bytes read to the Client
+                    byte = handle.read(buffer_size)   # Read a buffer size
+            header = HeaderBuilder.build_header( Operation.END_FILE.value, True,
+                                                 "", 0, "".encode())  # Send the bytes read to the Client
             self.send(header)
         else:
-            header = HeaderBuilder.build_header(Operation.ERROR.value, False, "", 0, "The input file does not exist in the directory".encode())
+            header = HeaderBuilder.build_header(Operation.ERROR.value, False,
+                                                "", 0, "The input file does not exist in the directory".encode())
             self.send(header)
 
-    
     def send(self, message):
         print ('sending "%s"' % message)
         self.sock.sendto(message.encode(), (self.server_address, self.port))

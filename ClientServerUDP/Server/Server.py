@@ -1,5 +1,5 @@
-from HeaderBuilder import HeaderBuilder
-from Operation import Operation
+from ClientServerUDP.HeaderBuilder import HeaderBuilder
+from ClientServerUDP.Operation import Operation
 import socket as sk
 import time
 import json
@@ -39,13 +39,12 @@ import base64
 #   Server will see how much is big the metadata field.
 
 class Server:
-    port = 0                              # The port where the Server is listening
-    address = ''                          # The address of the Server
-    buffer_size = 0                       # How much is big the buffer for reading files
-    time_to_sleep = 0                     # How much time the Server has to sleep before to send another package
-    socket = 0                            # Server's socket
-    path = os.path.join(os.getcwd(), 'Server') #
-    error_flag = 0                        # Flag used in order to notify the client of an internal error
+    port = 0                                    # The port where the Server is listening
+    address = ''                                # The address of the Server
+    buffer_size = 0                             # How much is big the buffer for reading files
+    time_to_sleep = 0                           # How much time the Server has to sleep before to send another package
+    socket = 0                                  # Server's socket
+    path = os.path.join(os.getcwd(), 'Server')  #
 
     # Define the constructor of the Server
     def __init__(self):
@@ -79,7 +78,6 @@ class Server:
                                             "", 0, metadata.encode())
         self.send_package(client, header)
         print('\n\r Sending all the files in the Directory...')
-        self.error_flag = 0  # No errors, the flag is false
         return metadata
 
     # Argument : file
@@ -88,19 +86,21 @@ class Server:
     # the Server send It to the Client. The chunk size is 8192 bytes
     def download(self, file, client):
         if file in os.listdir(self.path):
-            print('\n\r Sending the file %s to the destination', str(file))
+            print('\n\r Sending the file ' + str(file) + 'to the destination : ' + client)
             with open(os.path.join(self.path, file), 'rb') as handle:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
                 while byte:
-                    header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, False if self.error_flag == 1 else True, file, self.buffer_size, byte)
+                    header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, True,
+                                                        file, self.buffer_size, byte)
                     self.send_package(client, header)
+                    print("Sent a packet to the client...")
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
-            header = HeaderBuilder.build_header(Operation.END_FILE.value, True, "", 0, "".encode())  # Send the bytes read to the Client
+            header = HeaderBuilder.build_header(Operation.END_FILE.value, True,
+                                                "", 0, "".encode())  # Send the bytes read to the Client
+            print('\n\r All packages sent to the client.')
             self.send_package(client, header)
-            self.error_flag = 0  # No errors the file is in the current directory of the Server
         else:
-            self.error_flag = 1  # The selected file does not exist in the current directory of the Server
             header = HeaderBuilder.build_header(Operation.ERROR.value, False, "", 0, "The input file does not exist in the directory".encode())
             self.send_package(client, header)
 
@@ -110,10 +110,8 @@ class Server:
     # Return
     # This method write the metadata in input inside the new file named : file.
     def upload(self, file, message, client):
-        print(message)
-        print("UPLOAD")
-        
         buffer_reader_size = 12000
+        file_name = message['file_name']
         with open(os.path.join(self.path, file), 'wb') as f:
             data_json = message
             while True:
@@ -125,8 +123,8 @@ class Server:
                 f.write(file)
                 data = self.socket.recv(buffer_reader_size)
                 data_json = json.loads(data.decode())
-                print(data_json)
-        self.error_flag = 0
+                print("\n\r Received a packet from the client...")
+        print('\n\r All packages have been saved, the File is now available in the path : ' + os.path.join(self.path, str(file_name)))
 
     # Argument : self
     # Argument : destination
@@ -155,4 +153,8 @@ class Server:
                 
             elif operation == Operation.UPLOAD.value:
                 self.upload(file_name, header, client)
+            elif operation == Operation.EXIT.value:
+                self.socket.close()
+                print("The Server is closing...")
+                return
 
