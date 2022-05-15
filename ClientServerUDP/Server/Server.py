@@ -156,7 +156,7 @@ class Server:
             # First Operations : GET FILES
             if operation == Operation.GET_FILES.value:
                 metadata = self.get_files()
-                self.build_header(client, operation, "", metadata.__len__(), metadata)
+                self.build_header(client, operation, "", metadata.__len__(), metadata.encode())
 
             elif operation == Operation.DOWNLOAD.value:
                 self.download(file_name,client)
