@@ -103,6 +103,7 @@ class Server:
             self.error_flag = 1  # The selected file does not exist in the current directory of the Server
             header = HeaderBuilder.build_header(Operation.ERROR.value, False, "", 0, "The input file does not exist in the directory".encode())
             self.send_package(client, header)
+
     # Argument : self
     # Argument : file
     # Argument : metadata_files
@@ -114,10 +115,8 @@ class Server:
         
         buffer_reader_size = 12000
         with open(os.path.join(self.path, file), 'wb') as f:
-            data = message
+            data_json = message
             while True:
-                data_json = json.loads(data.decode())
-                print(data_json)
                 if not data_json['status']:
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
@@ -125,6 +124,8 @@ class Server:
                 file = base64.b64decode(data_json['metadata'])
                 f.write(file)
                 data = self.socket.recv(buffer_reader_size)
+                data_json = json.loads(data.decode())
+                print(data_json)
         self.error_flag = 0
 
     # Argument : self
@@ -136,21 +137,12 @@ class Server:
         time.sleep(self.time_to_sleep)
 
     # Argument : self
-    # Argument : metadata
-    # Argument : destination
-    # This method create the metadata header and the Server send it to the client
-    # Useless does not make any sens send a metadata package without the header file
-    def send_metadata(self, metadata, destination):
-        metadata = {"metadata": metadata}
-        self.send_package(destination, json.dumps(metadata))
-
-    # Argument : self
     # Main method of the Server. Here is where all the Client's request are managed
     # For every message received the served send an Operation.ACK to the Client.
     def launch_server(self):
         while True:
             # The server wait for a message receive from another Host
-            message, client = self.socket.recvfrom(4096)
+            message, client = self.socket.recvfrom(12000)
             header = json.loads(message.decode())  # Decoding of the file and parsing It in to the JSON format
             operation = header['operation']  # Get the Operations requested
             file_name = header['file_name']  # Get the file name
@@ -159,8 +151,8 @@ class Server:
                 self.get_files(client)
 
             elif operation == Operation.DOWNLOAD.value:
-                self.download(file_name,client)
+                self.download(file_name, client)
                 
             elif operation == Operation.UPLOAD.value:
-                self.upload(file_name, message, client)
+                self.upload(file_name, header, client)
 
