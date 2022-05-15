@@ -88,23 +88,25 @@ class Server:
             with open(self.path.join('\\').join(str(file)), 'rb') as handle:
                 for _ in handle:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
-                    self.send_metadata(byte, client)  # Send the bytes read to the Client
+                    self.build_header(client, Operation.SENDING_FILE.value, file, self.buffer_size, byte)  # Send the read bytes to the Client
                     time.sleep(self.time_to_sleep)
+            self.build_header(client, Operation.END_FILE.value, "", 0, "")  # Send the bytes read to the Client
             self.error_flag = 0  # No errors the file is in the current directory of the Server
         else:
             self.error_flag = 1  # The selected file does not exist in the current directory of the Server
+            self.build_header(client, Operation.ERROR.value, "", 0, "The input file does not exist in the directory")
 
     # Argument : self
     # Argument : file
     # Argument : metadata_files
     # Return
     # This method write the metadata in input inside the new file named : file.
-    def upload(self, file, metadata_files):
-        if file in os.listdir():
-
-            self.error_flag = 0
-        else:
+    def upload(self, file, metadata_files, client):
+        if file in os.listdir(self.path):
             self.error_flag = 1
+            self.build_header(client, Operation.ERROR.value, "", 0, "The input file does not exist in the directory")
+        else:
+            self.error_flag = 0
 
     # Argument : self
     # Argument : destination
@@ -120,12 +122,13 @@ class Server:
     # Argument : file:name      < What is the name of the requested\sent file >
     # Argument : Size           < The size of the file_name >
     # This method create the header file and then the Server send it to the client
-    def send_header(self, destination, operation, file_name, size):
+    def build_header(self, destination, operation, file_name, size, metadata):
         header = {
                 "operation": operation,
                 "file_name": file_name,
                 "status": False if self.error_flag == 1 else True,
-                "size": size
+                "size": size,
+                "metadata": metadata
                 }
         self.send_package(destination, json.dumps(header))
 
@@ -159,10 +162,10 @@ class Server:
             # First Operations : GET FILES
             if operation == Operation.GET_FILES.value:
                 metadata = self.get_files()
-                self.send_header(client, operation, "", 0)
+                self.build_header(client, operation, "", metadata.__len__(), metadata)
 
             elif operation == Operation.DOWNLOAD.value:
-                size = os.path.getsize(file_name)
+                self.download(file_name,client)
                 
             elif operation == Operation.UPLOAD.value:
                 size = 'null'

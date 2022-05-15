@@ -16,4 +16,7 @@ class Operation(Enum):
     UPLOAD = 3
     EXIT = 4
     ACK = 5
+    SENDING_FILE = 6
+    END_FILE = 7
+    ERROR = 8
 
