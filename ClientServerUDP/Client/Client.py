@@ -22,28 +22,25 @@ class Client:
         return json.loads(files.decode())['metadata']
         
     def download_file(self, file_name):
-        response = self.send(self.create_header(Operation.DOWNLOAD.value, file_name, True, 0, ""))
-    
-    def send(self, message):
-        print ('sending "%s"' % message)
-        self.sock.sendto(message.encode(), (self.server_address, self.port))
-        #  File buffer 
-        Buffersize = 12000         
-        with open(json.loads(message)['file_name'],'wb') as f:
+        header = self.create_header(Operation.DOWNLOAD.value, file_name, True, 0, "")
+        self.send(header)
+        buffersize = 12000         
+        with open(file_name,'wb') as f:
            while True:
-                #  Read data from the client 
-     
-                data = self.sock.recv(Buffersize)
+                data = self.sock.recv(buffersize)
                 data_json = json.loads(data.decode())
                 if(data_json['status'] == False):
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
                     break
                 file = base64.b64decode(data_json['metadata'])
-                
-                #  Read and write 
                 f.write(file)
-        return 0
+    
+    
+    
+    def send(self, message):
+        print ('sending "%s"' % message)
+        self.sock.sendto(message.encode(), (self.server_address, self.port))
 
     def close_connection(self):
         self.sock.close()
@@ -57,9 +54,8 @@ def main():
     try:
 
         client.set_server_adress('localhost', 20000)
-        data = client.download_file("test.mp4")
+        client.download_file("test.txt")
         time.sleep(1)
-        print (data)
     except Exception as info:
         print(info)
     finally:
