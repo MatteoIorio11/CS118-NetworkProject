@@ -85,11 +85,11 @@ class Server:
         if file in os.listdir(self.path):
             print('\n\r Sending the file %s to the destination', str(file))
             with open(os.path.join(self.path, file), 'rb') as handle:
-                for _ in handle:
-                    byte = handle.read(self.buffer_size)   # Read a buffer size
-                    print(byte);
+                byte = handle.read(self.buffer_size)   # Read a buffer size
+                while byte:
                     self.build_header(client, Operation.SENDING_FILE.value, file, self.buffer_size, byte)  # Send the read bytes to the Client
                     time.sleep(self.time_to_sleep)
+                    byte = handle.read(self.buffer_size)   # Read a buffer size
             self.build_header(client, Operation.END_FILE.value, "", 0, "".encode())  # Send the bytes read to the Client
             self.error_flag = 0  # No errors the file is in the current directory of the Server
         else:
@@ -114,7 +114,7 @@ class Server:
     # This method send a UDP package
     def send_package(self, destination, data):
         self.socket.sendto(data.encode(), destination)
-        time.sleep(1)
+        time.sleep(self.time_to_sleep)
 
     # Argument : self
     # Argument : destination    < The Client >
@@ -123,14 +123,7 @@ class Server:
     # Argument : Size           < The size of the file_name >
     # This method create the header file and then the Server send it to the client
     def build_header(self, destination, operation, file_name, size, metadata):
-        header = {
-                "operation": operation,
-                "file_name": file_name,
-                "status": False if self.error_flag == 1 else True,
-                "size": size,
-                "metadata": base64.b64encode(metadata).decode('ascii')
-                }
-        print(header)
+        header = {"operation": operation,"file_name": file_name,"status": False if self.error_flag == 1 else True,"size": size,"metadata": base64.b64encode(metadata).decode('ascii')}
         self.send_package(destination, json.dumps(header))
 
     # Argument : self
