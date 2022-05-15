@@ -1,3 +1,4 @@
+from ClientServerUDP.HeaderBuilder import HeaderBuilder
 from Operation import Operation
 import socket as sk
 import time
@@ -67,12 +68,15 @@ class Server:
         self.launch_server()  # Launch the Server's main application
 
     # Argument : self
+    # Argument : client
     # Return : All the files in the current directory
     # This method get all the files in the current directory of the server
-    def get_files(self):
+    def get_files(self, client):
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir(self.path)
         metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
+        header = HeaderBuilder.build_header(Operation.GET_FILES.value, self.error_flag, "", 0, metadata.encode())
+        self.send_package(client, header)
         print('\n\r Sending all the files in the Directory...')
         self.error_flag = 0  # No errors, the flag is false
         return metadata
@@ -87,7 +91,8 @@ class Server:
             with open(os.path.join(self.path, file), 'rb') as handle:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
                 while byte:
-                    self.build_header(client, Operation.SENDING_FILE.value, file, self.buffer_size, byte)  # Send the read bytes to the Client
+                    header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, self.error_flag, file, self.buffer_size, byte)
+                    self.send_package(client, header)
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
             self.build_header(client, Operation.END_FILE.value, "", 0, "".encode())  # Send the bytes read to the Client
@@ -104,12 +109,13 @@ class Server:
     def upload(self, file, message, client):
         if file in os.listdir(self.path):
             self.error_flag = 1
-            self.build_header(client, Operation.ERROR.value, "", 0, "The input file does not exist in the directory")
+            HeaderBuilder.build_header(client, Operation.ERROR.value, self.error_flag, "", 0,
+                                       "The input file does not exist in the directory".encode())
         else:
-            buffersize = 12000
+            buffer_reader_size = 12000
             with open(os.path.join(self.path, file), 'wb') as f:
                 while True:
-                    data = self.socket.recv(buffersize)
+                    data = self.socket.recv(buffer_reader_size)
                     data_json = json.loads(data.decode())
                     if not data_json['status']:
                         raise Exception(base64.b64decode(data_json['metadata']))
@@ -128,16 +134,6 @@ class Server:
         time.sleep(self.time_to_sleep)
 
     # Argument : self
-    # Argument : destination    < The Client >
-    # Argument : operation      < Which Operations is sent (see Operation.py) >
-    # Argument : file:name      < What is the name of the requested\sent file >
-    # Argument : Size           < The size of the file_name >
-    # This method create the header file and then the Server send it to the client
-    def build_header(self, destination, operation, file_name, size, metadata):
-        header = {"operation": operation,"file_name": file_name,"status": False if self.error_flag == 1 else True,"size": size,"metadata": base64.b64encode(metadata).decode('ascii')}
-        self.send_package(destination, json.dumps(header))
-
-    # Argument : self
     # Argument : metadata
     # Argument : destination
     # This method create the metadata header and the Server send it to the client
@@ -154,13 +150,11 @@ class Server:
             # The server wait for a message receive from another Host
             message, client = self.socket.recvfrom(4096)
             header = json.loads(message.decode())  # Decoding of the file and parsing It in to the JSON format
-            operation = header['operation']# Get the Operations requested
+            operation = header['operation']  # Get the Operations requested
             file_name = header['file_name']  # Get the file name
-            #print(header)
             # First Operations : GET FILES
             if operation == Operation.GET_FILES.value:
-                metadata = self.get_files()
-                self.build_header(client, operation, "", metadata.__len__(), metadata.encode())
+                self.get_files(client)
 
             elif operation == Operation.DOWNLOAD.value:
                 self.download(file_name,client)
