@@ -95,6 +95,7 @@ class Server:
             file_size = os.path.getsize(os.path.join(self.path, file))/self.buffer_size
             header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, str(file_size).encode())
             self.send_package(client, header)
+            time.sleep(self.time_to_sleep)
             with open(os.path.join(self.path, file), 'rb') as handle:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
                 status_download = 1
