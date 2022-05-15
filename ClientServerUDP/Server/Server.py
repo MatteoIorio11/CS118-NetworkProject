@@ -75,7 +75,8 @@ class Server:
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir(self.path)
         metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
-        header = HeaderBuilder.build_header(Operation.GET_FILES.value, self.error_flag, "", 0, metadata.encode())
+        header = HeaderBuilder.build_header(Operation.GET_FILES.value, False if self.error_flag == 1 else True,
+                                            "", 0, metadata.encode())
         self.send_package(client, header)
         print('\n\r Sending all the files in the Directory...')
         self.error_flag = 0  # No errors, the flag is false
@@ -91,7 +92,7 @@ class Server:
             with open(os.path.join(self.path, file), 'rb') as handle:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
                 while byte:
-                    header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, self.error_flag, file, self.buffer_size, byte)
+                    header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, False if self.error_flag == 1 else True, file, self.buffer_size, byte)
                     self.send_package(client, header)
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
@@ -109,7 +110,7 @@ class Server:
     def upload(self, file, message, client):
         if file in os.listdir(self.path):
             self.error_flag = 1
-            HeaderBuilder.build_header(client, Operation.ERROR.value, self.error_flag, "", 0,
+            HeaderBuilder.build_header(client, Operation.ERROR.value, False if self.error_flag == 1 else True, "", 0,
                                        "The input file does not exist in the directory".encode())
         else:
             buffer_reader_size = 12000

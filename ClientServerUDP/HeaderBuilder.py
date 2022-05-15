@@ -13,7 +13,7 @@ class HeaderBuilder:
     def build_header(self, operation, status, file_name, size, metadata):
         header = {
                   "operation": operation,"file_name": file_name,
-                  "status": False if status == 1 else True,
+                  "status": status,
                   "size": size,
                   "metadata": base64.b64encode(metadata).decode('ascii')
                   }
