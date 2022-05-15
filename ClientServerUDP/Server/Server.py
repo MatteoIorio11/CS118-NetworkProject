@@ -42,7 +42,7 @@ class Server:
     buffer_size = 0                       # How much is big the buffer for reading files
     time_to_sleep = 0                     # How much time the Server has to sleep before to send another package
     socket = 0                            # Server's socket
-    path = os.path.join(os.getcwd(),'Server') #
+    path = os.path.join(os.getcwd(), 'Server') #
     error_flag = 0                        # Flag used in order to notify the client of an internal error
 
     # Define the constructor of the Server
@@ -54,7 +54,7 @@ class Server:
         self.port = dictionary['port']
         self.buffer_size = dictionary['buffer_size']
         self.time_to_sleep = dictionary['time_to_sleep']
-        self.path = self.path + '\\' + dictionary['path']
+        self.path = os.path.join(self.path, dictionary['path'])
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
 
     # Argument : self
