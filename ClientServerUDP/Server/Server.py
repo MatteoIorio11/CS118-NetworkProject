@@ -18,7 +18,7 @@ import base64
 #
 #
 #   |----------------------------------------|
-#   | operation : Operations.XXX.value       |
+#   | operation : Operation.XXX.value        |
 #   | file_name : beautiful_file.txt or  ""  |
 #   | status    : True Or False              |
 #   | size      : size of the file_name      |
@@ -45,15 +45,15 @@ class Server:
     time_to_sleep = 0                           # How much time the Server has to sleep before to send another package
     socket = 0                                  # Server's socket
     path = os.path.join(os.getcwd(), 'Server')  #
-    menu = " Hi, This is the UDP Server. Here are the possible operations that you can do: " \
-           " 1) Get the list of all my files" \
-           " 2) Download a file from my list files" \
-           " 3) Upload your file in my directory" \
+    menu = " Hi, This is the UDP Server. Here are the possible operations that you can do: \n" \
+           " 1) Get the list of all my files \n" \
+           " 2) Download a file from my list files \n" \
+           " 3) Upload your file in my directory \n" \
            " 4) EXIT"
 
     # Define the constructor of the Server
     def __init__(self):
-        file = os.path.join(self.path,'config.yaml')  # path of the configuration file
+        file = os.path.join(self.path, 'config.yaml')  # path of the configuration file
         with open(file, 'r') as file:
             dictionary = yaml.load(file, Loader=yaml.FullLoader)
         self.address = str(dictionary['address'])
@@ -101,7 +101,7 @@ class Server:
                                                         file, self.buffer_size, byte)
                     percentage = int((status_download*100)/file_size)
                     self.send_package(client, header)
-                    print("Percentage of sent packages : " + percentage + "\n")
+                    print("Percentage of sent packages : " + str(percentage) + "\n")
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     status_download = status_download + 1
@@ -136,7 +136,8 @@ class Server:
                 file = base64.b64decode(data_json['metadata'])
                 f.write(file)
                 print("Received a packet from the client...\n")
-        print('\n\r All packages have been saved, the File is now available in the path : ' + os.path.join(self.path, str(file_name)))
+        print('\n\r All packages have been saved, the File is now available in the path : '
+              + os.path.join(self.path, str(file_name)))
 
     # Argument : self
     # Argument : destination
