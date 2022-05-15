@@ -101,11 +101,22 @@ class Server:
     # Argument : metadata_files
     # Return
     # This method write the metadata in input inside the new file named : file.
-    def upload(self, file, metadata_files, client):
+    def upload(self, file, message, client):
         if file in os.listdir(self.path):
             self.error_flag = 1
             self.build_header(client, Operation.ERROR.value, "", 0, "The input file does not exist in the directory")
         else:
+            buffersize = 12000
+            with open(os.path.join(self.path, file), 'wb') as f:
+                while True:
+                    data = self.socket.recv(buffersize)
+                    data_json = json.loads(data.decode())
+                    if not data_json['status']:
+                        raise Exception(base64.b64decode(data_json['metadata']))
+                    if data_json['operation'] == Operation.END_FILE.value:
+                        break
+                    file = base64.b64decode(data_json['metadata'])
+                    f.write(file)
             self.error_flag = 0
 
     # Argument : self
@@ -134,13 +145,6 @@ class Server:
     def send_metadata(self, metadata, destination):
         metadata = {"metadata": metadata}
         self.send_package(destination, json.dumps(metadata))
-
-    def get_file_size(self, file):
-        if file in os.listdir():
-            return os.path.getsize(file)
-        else:
-            self.error_flag = 1
-            return -1
 
     # Argument : self
     # Main method of the Server. Here is where all the Client's request are managed
