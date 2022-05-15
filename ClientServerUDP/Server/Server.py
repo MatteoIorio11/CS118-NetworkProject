@@ -110,8 +110,10 @@ class Server:
     # Return
     # This method write the metadata in input inside the new file named : file.
     def upload(self, file, message, client):
-        buffer_reader_size = 12000
+        buffer_reader_size = 12_000
         file_name = message['file_name']
+        header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, "".encode())
+        self.send_package(client, header)
         with open(os.path.join(self.path, file), 'wb') as f:
             data_json = message
             while True:
@@ -153,6 +155,7 @@ class Server:
                 
             elif operation == Operation.UPLOAD.value:
                 self.upload(file_name, header, client)
+
             elif operation == Operation.EXIT.value:
                 self.socket.close()
                 print("The Server is closing...")
