@@ -1,6 +1,5 @@
-from Server import Server
-import yaml
-import socket as sk
+from Server.Server import Server
+
 
 def main():
     server = Server()

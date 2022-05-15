@@ -1,4 +1,4 @@
-from Operation import Operation
+from ClientServerUDP.Operation import Operation
 import socket as sk
 import time
 import json
@@ -37,21 +37,26 @@ import yaml
 #   Server will see how much is big the metadata field.
 
 class Server:
-    port = 0           # The port where the Server is listening
-    address = ''       # The address of the Server
-    buffer_size = 0    # How much is big the buffer for reading files
-    time_to_sleep = 0  # How much time the Server has to sleep before to send another package
-    socket = 0         # Server's socket
-    error_flag = 0     # Flag used in order to notify the client of an internal error
+    port = 0                              # The port where the Server is listening
+    address = ''                          # The address of the Server
+    buffer_size = 0                       # How much is big the buffer for reading files
+    time_to_sleep = 0                     # How much time the Server has to sleep before to send another package
+    socket = 0                            # Server's socket
+    path = os.getcwd() + '\\' + 'Server'  #
+    error_flag = 0                        # Flag used in order to notify the client of an internal error
 
     # Define the constructor of the Server
     def __init__(self):
-        with open(r'config.yaml') as file:
+        print('AOO')
+        file = self.path + '\\' + 'config.yaml'  # path of the configuration file
+        print(file)
+        with open(file, 'r') as file:
             dictionary = yaml.load(file, Loader=yaml.FullLoader)
         self.address = str(dictionary['address'])
         self.port = dictionary['port']
         self.buffer_size = dictionary['buffer_size']
         self.time_to_sleep = dictionary['time_to_sleep']
+        self.path = self.path + '\\' + dictionary['path']
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
 
     # Argument : self
@@ -67,8 +72,8 @@ class Server:
     # This method get all the files in the current directory of the server
     def get_files(self):
         print('\n\r Received command : "list files" ')
-        list_directories = os.listdir()
-        metadata = ''.join([(str(directory)+"\n") for directory in list_directories if os.path.isfile(directory)])
+        list_directories = os.listdir(self.path)
+        metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
         print('\n\r Sending all the files in the Directory...')
         self.error_flag = 0  # No errors, the flag is false
         return metadata
@@ -80,7 +85,7 @@ class Server:
     def download(self, file, client):
         if file in os.listdir():
             print('\n\r Sending the file ' % file % ' to the destination')
-            with open(file, 'rb') as handle:
+            with open(self.path.join('\\').join(str(file)), 'rb') as handle:
                 for _ in handle:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     self.send_metadata(byte, client)  # Send the bytes read to the Client

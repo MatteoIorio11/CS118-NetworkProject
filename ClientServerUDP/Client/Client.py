@@ -1,7 +1,7 @@
 import socket as sk
 import time
 import json
-from Operation import Operation
+from ClientServerUDP.Operation import Operation
 
 class Client:
     def __init__(self):
@@ -21,7 +21,7 @@ class Client:
         return json.loads(files.decode())['metadata']
         
     def download_file(self, file_name):
-        response = self.send(data)
+        response = self.send()
     
     def send(self, message):
         print ('sending "%s"' % message)
@@ -40,18 +40,24 @@ class Client:
     def close_connection(self):
         self.sock.close()
 
-client = Client()
 
-message = 'Questo è il corso di ?'
+def main():
+    client = Client()
 
-try:
+    message = 'Questo è il corso di ?'
 
-    client.set_server_adress('localhost', 20000)
-    data = client.get_files_on_server()
-    time.sleep(1)
-    print (data)
-except Exception as info:
-    print(info)
-finally:
-    print ('closing socket')
-    client.close_connection()
+    try:
+
+        client.set_server_adress('localhost', 20000)
+        data = client.get_files_on_server()
+        time.sleep(1)
+        print (data)
+    except Exception as info:
+        print(info)
+    finally:
+        print ('closing socket')
+        client.close_connection()
+
+
+if __name__ == "__main__":
+    main()
