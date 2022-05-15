@@ -91,22 +91,27 @@ class Server:
     # the Server send It to the Client. The chunk size is 8192 bytes
     def download(self, file, client):
         if file in os.listdir(self.path):
-            print('\n\r Sending the file ' + str(file) + 'to the destination : ' + client)
+            print('Sending the file ' + str(file) + 'to the destination.\n')
+            file_size = os.path.getsize(os.path.join(self.path, file))/self.buffer_size
             with open(os.path.join(self.path, file), 'rb') as handle:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
+                status_download = 1
                 while byte:
                     header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, True,
                                                         file, self.buffer_size, byte)
+                    percentage = int((status_download*100)/file_size)
                     self.send_package(client, header)
-                    print("Sent a packet to the client...")
+                    print("Percentage of sent packages : " + percentage + "\n")
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
+                    status_download = status_download + 1
             header = HeaderBuilder.build_header(Operation.END_FILE.value, True,
                                                 "", 0, "".encode())  # Send the bytes read to the Client
-            print('\n\r All packages sent to the client.')
+            print('\n\r All packages have been sent to the client.')
             self.send_package(client, header)
         else:
-            header = HeaderBuilder.build_header(Operation.ERROR.value, False, "", 0, "The input file does not exist in the directory".encode())
+            header = HeaderBuilder.build_header(Operation.ERROR.value, False,
+                                                "", 0, "The input file does not exist in the directory".encode())
             self.send_package(client, header)
 
     # Argument : self
@@ -115,7 +120,8 @@ class Server:
     # Return
     # This method write the metadata in input inside the new file named : file.
     def upload(self, file, message, client):
-        buffer_reader_size = 12_000
+        print("The Server is ready to receive the file from the Client.\n")
+        buffer_reader_size = 16_384
         file_name = message['file_name']
         header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, "".encode())
         self.send_package(client, header)
@@ -129,7 +135,7 @@ class Server:
                     break
                 file = base64.b64decode(data_json['metadata'])
                 f.write(file)
-                print("\n\r Received a packet from the client...")
+                print("Received a packet from the client...\n")
         print('\n\r All packages have been saved, the File is now available in the path : ' + os.path.join(self.path, str(file_name)))
 
     # Argument : self
@@ -150,29 +156,25 @@ class Server:
     def launch_server(self):
         while True:
             # The server wait for a message receive from another Host
-            message, client = self.socket.recvfrom(12000)
+            message, client = self.socket.recvfrom(4096)
             header = json.loads(message.decode())  # Decoding of the file and parsing It in to the JSON format
             operation = header['operation']  # Get the Operations requested
             file_name = header['file_name']  # Get the file name
-            # First Operations : GET FILES
 
             if operation == Operation.OPEN_CONNECTION.value:
                 self.send_menu(client)
 
+            # First Operations : GET FILES
             elif operation == Operation.GET_FILES.value:
                 self.get_files(client)
-                self.send_menu(client)
 
             elif operation == Operation.DOWNLOAD.value:
                 self.download(file_name, client)
-                self.send_menu(client)
 
             elif operation == Operation.UPLOAD.value:
                 self.upload(file_name, header, client)
-                self.send_menu(client)
 
             elif operation == Operation.EXIT.value:
                 self.socket.close()
                 print("The Server is closing...")
                 return
-
