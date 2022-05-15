@@ -81,12 +81,12 @@ class Server:
     # This method read multiple chunks of the selected file, after every chunk
     # the Server send It to the Client. The chunk size is 8192 bytes
     def download(self, file, client):
-        if file in os.listdir():
-            print('\n\r Sending the file ' % file % ' to the destination')
+        if file in os.listdir(self.path):
+            print('\n\r Sending the file ' % str(file) % ' to the destination')
             with open(os.path.join(self.path, file), 'rb') as handle:
                 for _ in handle:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
-                    self.build_header(client, Operation.SENDING_FILE.value, file, self.buffer_size, byte)  # Send the read bytes to the Client
+                    self.build_header(client, Operation.SENDING_FILE.value, file, self.buffer_size, byte.encode())  # Send the read bytes to the Client
                     time.sleep(self.time_to_sleep)
             self.build_header(client, Operation.END_FILE.value, "", 0, "")  # Send the bytes read to the Client
             self.error_flag = 0  # No errors the file is in the current directory of the Server
