@@ -1,8 +1,9 @@
+from Operation import Operation
 import socket as sk
 import time
 import json
-from Operation import Operation
 import os
+import yaml
 
 
 # Server Class.
@@ -36,21 +37,27 @@ import os
 #   Server will see how much is big the metadata field.
 
 class Server:
-    port = 0        # The port where the Server is listening
-    address = ''    # The address of the Server
-    socket = 0      # Server's socket
-    error_flag = 0  # Flag used in order to notify the client of an internal error
+    port = 0           # The port where the Server is listening
+    address = ''       # The address of the Server
+    buffer_size = 0    # How much is big the buffer for reading files
+    time_to_sleep = 0  # How much time the Server has to sleep before to send another package
+    socket = 0         # Server's socket
+    error_flag = 0     # Flag used in order to notify the client of an internal error
 
     # Define the constructor of the Server
-    def __init__(self, port, address):
-        self.port = port
-        self.address = str(address)
+    def __init__(self):
+        with open(r'config.yaml') as file:
+            dictionary = yaml.load(file, Loader=yaml.FullLoader)
+        self.address = str(dictionary['address'])
+        self.port = dictionary['port']
+        self.buffer_size = dictionary['buffer_size']
+        self.time_to_sleep = dictionary['time_to_sleep']
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
 
     # Argument : self
     # This method set the server address -> set the IP and the PORT and then the creation of the Server's socket
     def start_server(self):
-        server_address = ('localhost', 20000)
+        server_address = (self.address, self.port)
         print('\n\r starting up the server on ip : %s  and port : %s' % server_address)
         self.socket.bind(server_address)
         self.launch_server()  # Launch the Server's main application
@@ -73,12 +80,11 @@ class Server:
     def download(self, file, client):
         if file in os.listdir():
             print('\n\r Sending the file ' % file % ' to the destination')
-            buffer_size = 8192
             with open(file, 'rb') as handle:
                 for _ in handle:
-                    byte = handle.read(buffer_size)   # Read a buffer size
+                    byte = handle.read(self.buffer_size)   # Read a buffer size
                     self.send_metadata(byte, client)  # Send the bytes read to the Client
-                    time.sleep(0.001)
+                    time.sleep(self.time_to_sleep)
             self.error_flag = 0  # No errors the file is in the current directory of the Server
         else:
             self.error_flag = 1  # The selected file does not exist in the current directory of the Server
@@ -147,7 +153,7 @@ class Server:
 
             # First Operations : GET FILES
             if operation == Operation.GET_FILES.value:
-                metadata = self.get_files()  # Get all the files from the current directory
+                metadata = self.get_files()
                 self.send_header(client, operation, "", 0)
 
             elif operation == Operation.DOWNLOAD.value:
