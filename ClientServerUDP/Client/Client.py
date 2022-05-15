@@ -1,9 +1,10 @@
 import socket as sk
 import time
 import json
-from ClientServerUDP import HeaderBuilder, Operation
 import base64
 import os
+from HeaderBuilder import HeaderBuilder
+from Operation import Operation
 
 class Client:
     def __init__(self):
@@ -14,7 +15,7 @@ class Client:
         self.port = port
         
     def get_files_on_server(self):
-        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True, "", 0, "")
+        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True, "", 0, "".encode())
         self.send(header)
         data = self.sock.recv()
         data_json = json.loads(data.decode())
@@ -25,7 +26,7 @@ class Client:
         return files
         
     def download_file(self, file_name):
-        header = HeaderBuilder.build_header(Operation.DOWNLOAD.value, True, file_name, 0, "")
+        header = HeaderBuilder.build_header(Operation.DOWNLOAD.value, True, file_name, 0, "".encode())
         self.send(header)
         buffersize = 12000         
         with open(file_name,'wb') as f:
@@ -50,12 +51,10 @@ class Client:
                     self.send(header)
                     time.sleep(0.0001)
                     byte = handle.read(buffersize)   # Read a buffer size
-            header = self.build_header( Operation.END_FILE.value, "", True, 0, "".encode())  # Send the bytes read to the Client
+            header = HeaderBuilder.build_header( Operation.END_FILE.value, True, "", 0, "".encode())  # Send the bytes read to the Client
             self.send(header)
-            self.error_flag = 0  # No errors the file is in the current directory of the Server
         else:
-            self.error_flag = 1  # The selected file does not exist in the current directory of the Server
-            header = self.build_header(Operation.ERROR.value, "", True, 0, "The input file does not exist in the directory".encode())
+            header = HeaderBuilder.build_header(Operation.ERROR.value, False, "", 0, "The input file does not exist in the directory".encode())
             self.send(header)
 
     
@@ -73,7 +72,7 @@ def main():
     try:
 
         client.set_server_adress('localhost', 20000)
-        client.download_file("test.txt")
+        client.upload("test.txt")
         time.sleep(1)
     except Exception as info:
         print(info)

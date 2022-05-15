@@ -1,4 +1,4 @@
-from ClientServerUDP.HeaderBuilder import HeaderBuilder
+from HeaderBuilder import HeaderBuilder
 from Operation import Operation
 import socket as sk
 import time
@@ -96,18 +96,20 @@ class Server:
                     self.send_package(client, header)
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
-            self.build_header(client, Operation.END_FILE.value, "", 0, "".encode())  # Send the bytes read to the Client
+            header = HeaderBuilder.build_header(Operation.END_FILE.value, True, "", 0, "".encode())  # Send the bytes read to the Client
+            self.send_package(client, header)
             self.error_flag = 0  # No errors the file is in the current directory of the Server
         else:
             self.error_flag = 1  # The selected file does not exist in the current directory of the Server
-            self.build_header(client, Operation.ERROR.value, "", 0, "The input file does not exist in the directory".encode())
-
+            header = HeaderBuilder.build_header(Operation.ERROR.value, False, "", 0, "The input file does not exist in the directory".encode())
+            self.send_package(client, header)
     # Argument : self
     # Argument : file
     # Argument : metadata_files
     # Return
     # This method write the metadata in input inside the new file named : file.
     def upload(self, file, message, client):
+        print("UPLOAD")
         if file in os.listdir(self.path):
             self.error_flag = 1
             HeaderBuilder.build_header(client, Operation.ERROR.value, False if self.error_flag == 1 else True, "", 0,
