@@ -3,8 +3,8 @@ import time
 import json
 import base64
 import os
-from ClientServerUDP.HeaderBuilder import HeaderBuilder
-from ClientServerUDP.Operation import Operation
+from HeaderBuilder import HeaderBuilder
+from Operation import Operation
 
 
 class Client:
@@ -44,6 +44,12 @@ class Client:
                 f.write(file)
     
     def upload(self, file):
+        upload_request = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, 0, "".encode())
+        self.send(upload_request)
+        ack = self.sock.recv()
+        ack_json = json.loads(ack.decode())
+        if not ack_json['status'] and ack_json['operation'] != Operation.ACK:
+            raise Exception(base64.b64decode(ack_json['metadata']))
         buffer_size = 8192
         if file in os.listdir(os.getcwd()):
             print('\n\r Sending the file %s to the destination', str(file))
