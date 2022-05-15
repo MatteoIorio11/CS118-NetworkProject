@@ -83,7 +83,7 @@ class Server:
     def download(self, file, client):
         if file in os.listdir():
             print('\n\r Sending the file ' % file % ' to the destination')
-            with open(self.path.join('\\').join(str(file)), 'rb') as handle:
+            with open(os.path.join(self.path, file), 'rb') as handle:
                 for _ in handle:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     self.build_header(client, Operation.SENDING_FILE.value, file, self.buffer_size, byte)  # Send the read bytes to the Client
