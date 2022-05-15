@@ -74,7 +74,7 @@ class Server:
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir(self.path)
         metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
-        header = HeaderBuilder.build_header(Operation.GET_FILES.value, False if self.error_flag == 1 else True,
+        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True,
                                             "", 0, metadata.encode())
         self.send_package(client, header)
         print('\n\r Sending all the files in the Directory...')
