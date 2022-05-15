@@ -1,7 +1,7 @@
 import socket as sk
 import time
 import json
-from ClientServerUDP.Operation import Operation
+from Operation import Operation
 
 class Client:
     def __init__(self):
@@ -11,8 +11,8 @@ class Client:
         self.server_address = server_address
         self.port = port
     
-    def create_header(self, operation, file_name, status):
-        header = {"operation": operation,"file_name": file_name, "status": status}
+    def create_header(self, operation, file_name, status, size, metadata):
+        header = {"operation": operation,"file_name": file_name, "status": status, "size": size, "metadata": metadata}
         return json.dumps(header)
         
     def get_files_on_server(self):
@@ -26,16 +26,24 @@ class Client:
     def send(self, message):
         print ('sending "%s"' % message)
         self.sock.sendto(message.encode(), (self.server_address, self.port))
-        
-        print('waiting to receive from')
-        data, server = self.sock.recvfrom(4096)
-        data = json.loads(data.decode('utf8'))
-        if(data['status'] == True):
-            self.sock.sendto(self.create_header(Operation.ACK.value, "", True).encode(), (self.server_address, self.port))
-            response, server = self.sock.recvfrom(4096)
-        else:
-            raise Exception("Failed")
-        return response
+        #  File buffer 
+        Buffersize = 12000         
+        while True:
+            print(' Prepare to receive new files ...')
+            with open(json.loads(message)['file_name'],'wb') as f:
+               while True:
+                    #  Read data from the client 
+         
+                    data = self.sock.recv(Buffersize)
+                    data_json = json.dumps(data.decode())
+                    if(data_json['status'] == False):
+                        raise Exception(json['metadata'])
+                    if data_json['operation'] == Operation.END_FILE.value:
+                        break
+                    file = data_json['metadata']
+                    #  Read and write 
+                    f.write(file)
+        return 0
 
     def close_connection(self):
         self.sock.close()

@@ -1,4 +1,4 @@
-from ClientServerUDP.Operation import Operation
+from Operation import Operation
 import socket as sk
 import time
 import json
