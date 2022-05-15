@@ -4,6 +4,7 @@ import time
 import json
 import os
 import yaml
+import base64
 
 
 # Server Class.
@@ -82,17 +83,17 @@ class Server:
     # the Server send It to the Client. The chunk size is 8192 bytes
     def download(self, file, client):
         if file in os.listdir(self.path):
-            print('\n\r Sending the file ' % str(file) % ' to the destination')
+            print('\n\r Sending the file %s to the destination', str(file))
             with open(os.path.join(self.path, file), 'rb') as handle:
                 for _ in handle:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
-                    self.build_header(client, Operation.SENDING_FILE.value, file, self.buffer_size, byte.encode())  # Send the read bytes to the Client
+                    self.build_header(client, Operation.SENDING_FILE.value, file, self.buffer_size, byte)  # Send the read bytes to the Client
                     time.sleep(self.time_to_sleep)
-            self.build_header(client, Operation.END_FILE.value, "", 0, "")  # Send the bytes read to the Client
+            self.build_header(client, Operation.END_FILE.value, "", 0, "".encode())  # Send the bytes read to the Client
             self.error_flag = 0  # No errors the file is in the current directory of the Server
         else:
             self.error_flag = 1  # The selected file does not exist in the current directory of the Server
-            self.build_header(client, Operation.ERROR.value, "", 0, "The input file does not exist in the directory")
+            self.build_header(client, Operation.ERROR.value, "", 0, "The input file does not exist in the directory".encode())
 
     # Argument : self
     # Argument : file
@@ -126,8 +127,9 @@ class Server:
                 "file_name": file_name,
                 "status": False if self.error_flag == 1 else True,
                 "size": size,
-                "metadata": metadata
+                "metadata": base64.b64encode(metadata).decode('ascii')
                 }
+        print(header)
         self.send_package(destination, json.dumps(header))
 
     # Argument : self
@@ -154,9 +156,9 @@ class Server:
             # The server wait for a message receive from another Host
             message, client = self.socket.recvfrom(4096)
             header = json.loads(message.decode())  # Decoding of the file and parsing It in to the JSON format
-            operation = "operation" in header  # Get the Operations requested
-            file_name = "file_name" in header  # Get the file name
-
+            operation = header['operation']# Get the Operations requested
+            file_name = header['file_name']  # Get the file name
+            #print(header)
             # First Operations : GET FILES
             if operation == Operation.GET_FILES.value:
                 metadata = self.get_files()
