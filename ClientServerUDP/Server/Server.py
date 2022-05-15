@@ -93,6 +93,8 @@ class Server:
         if file in os.listdir(self.path):
             print('Sending the file ' + str(file) + 'to the destination.\n')
             file_size = os.path.getsize(os.path.join(self.path, file))/self.buffer_size
+            header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, str(file_size).encode())
+            self.send_package(client, header)
             with open(os.path.join(self.path, file), 'rb') as handle:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
                 status_download = 1
