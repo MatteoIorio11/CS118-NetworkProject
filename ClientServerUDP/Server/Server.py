@@ -42,14 +42,12 @@ class Server:
     buffer_size = 0                       # How much is big the buffer for reading files
     time_to_sleep = 0                     # How much time the Server has to sleep before to send another package
     socket = 0                            # Server's socket
-    path = os.getcwd() + '\\' + 'Server'  #
+    path = os.path.join(os.getcwd(),'Server') #
     error_flag = 0                        # Flag used in order to notify the client of an internal error
 
     # Define the constructor of the Server
     def __init__(self):
-        print('AOO')
-        file = self.path + '\\' + 'config.yaml'  # path of the configuration file
-        print(file)
+        file = os.path.join(self.path,'config.yaml')  # path of the configuration file
         with open(file, 'r') as file:
             dictionary = yaml.load(file, Loader=yaml.FullLoader)
         self.address = str(dictionary['address'])
