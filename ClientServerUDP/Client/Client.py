@@ -16,12 +16,12 @@ class Client:
         return json.dumps(header)
         
     def get_files_on_server(self):
-        files = self.send(self.create_header(Operation.GET_FILES.value, "", True))
+        files = self.send(self.create_header(Operation.GET_FILES.value, "", True, 0, ""))
         
         return json.loads(files.decode())['metadata']
         
     def download_file(self, file_name):
-        response = self.send()
+        response = self.send(self.create_header(Operation.DOWNLOAD.value, file_name, True, 0, ""))
     
     def send(self, message):
         print ('sending "%s"' % message)
@@ -36,6 +36,7 @@ class Client:
          
                     data = self.sock.recv(Buffersize)
                     data_json = json.dumps(data.decode())
+                    print(data_json)
                     if(data_json['status'] == False):
                         raise Exception(json['metadata'])
                     if data_json['operation'] == Operation.END_FILE.value:
@@ -57,7 +58,7 @@ def main():
     try:
 
         client.set_server_adress('localhost', 20000)
-        data = client.get_files_on_server()
+        data = client.download_file("test.txt")
         time.sleep(1)
         print (data)
     except Exception as info:
