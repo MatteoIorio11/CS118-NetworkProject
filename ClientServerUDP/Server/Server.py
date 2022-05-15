@@ -115,16 +115,15 @@ class Server:
         header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, "".encode())
         self.send_package(client, header)
         with open(os.path.join(self.path, file), 'wb') as f:
-            data_json = message
             while True:
+                data = self.socket.recv(buffer_reader_size)
+                data_json = json.loads(data.decode())
                 if not data_json['status']:
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
                     break
                 file = base64.b64decode(data_json['metadata'])
                 f.write(file)
-                data = self.socket.recv(buffer_reader_size)
-                data_json = json.loads(data.decode())
                 print("\n\r Received a packet from the client...")
         print('\n\r All packages have been saved, the File is now available in the path : ' + os.path.join(self.path, str(file_name)))
 
