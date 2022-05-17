@@ -10,11 +10,12 @@ class HeaderBuilder:
     # Argument : Size           < The size of the file_name >
     # This method create the header file and then the Server\Client send it to the destination
     @staticmethod
-    def build_header(operation, status, file_name, size, metadata):
+    def build_header(operation, status, checksum, file_name, size, metadata):
         header = {
                   "operation": operation,
                   "file_name": file_name,
                   "status": status,
+                  "checksum": checksum,
                   "size": size,
                   "metadata": base64.b64encode(metadata).decode('ascii')
                   }
