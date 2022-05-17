@@ -141,17 +141,22 @@ class Server:
         print("The Server is ready to receive the file from the Client.\n")
         buffer_reader_size = 16_384
         file_name = message['file_name']
-        tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that i should receive
+        tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
         cont_packs = 0
-        header = HeaderBuilder.build_header(Operation.ACK.value, True, hash("init"), "", 0, "".encode())
+        md5 = hashlib.md5()
+        md5.update("ACK".encode())
+        header = HeaderBuilder.build_header(Operation.ACK.value, True, md5.hexdigest(), "", 0, "ACK".encode())
         self.send_package(client, header)
+        md5 = hashlib.md5()
         with open(os.path.join(self.path, file), 'wb') as f:
             while True:
                 data = self.socket.recv(buffer_reader_size)
                 data_json = json.loads(data.decode())
                 checksum = data_json['checksum']
-                print(checksum)
-                if not data_json['status'] or checksum != hash(data_json['metadata']):
+                md5.update(base64.b64decode(data_json['metadata']))
+                res = md5.hexdigest()
+                print(checksum + " " + str(res))
+                if not data_json['status'] or checksum != res :
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
                     break

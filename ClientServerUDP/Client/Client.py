@@ -94,28 +94,39 @@ class Client:
             if file in os.listdir(os.getcwd()):
                 buffer_size = 8192
                 tot_packs = math.ceil(os.path.getsize(os.path.join(os.getcwd(), file))/buffer_size)
-                upload_request = HeaderBuilder.build_header(Operation.UPLOAD.value, True, hash(''), file, 0, str(tot_packs).encode())    #creating header for uploading file
+                md5 = hashlib.md5()
+                md5.update(str(tot_packs).encode())
+                upload_request = HeaderBuilder.build_header(Operation.UPLOAD.value, True, md5.hexdigest(),
+                                                            file, 0, str(tot_packs).encode())    #creating header for uploading file
                 self.send(upload_request)
                 ack = self.sock.recv(4096)    #waiting for an ack from the server
                 ack_json = json.loads(ack.decode())
-                if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value:
+                md5 = hashlib.md5()
+                md5.update(base64.b64decode(ack_json['metadata']))
+                checksum = ack_json['checksum']
+                if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value or checksum != md5.hexdigest():
                     raise Exception(base64.b64decode(ack_json['metadata']))
                 #now the client is ready to send packets and the server to receive them
                 cont_packs = 0
                 print('\n\r Sending the file %s to the destination' % str(file))
+                md5 = hashlib.md5()
                 with open(os.path.join(os.getcwd(), file), 'rb') as handle:
                     byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
                     cont_packs += 1
+                    md5.update(byte)
                     while byte:
-                        header = HeaderBuilder.build_header(Operation.UPLOAD.value, True, hash(''), file, buffer_size, byte)  # Send the read bytes to the Client
+                        header = HeaderBuilder.build_header(Operation.UPLOAD.value, True, md5.hexdigest(),
+                                                            file, buffer_size, byte)  # Send the read bytes to the Client
                         self.send(header)
                         percent = int(cont_packs*100/tot_packs)
                         cont_packs += 1
                         print("{:03d}".format(percent), "%", end='\r')
                         time.sleep(0.001)
                         byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
-                header = HeaderBuilder.build_header( Operation.END_FILE.value, True, hash(''),
-                                                     "", 0, "".encode())  #Telling to the server that the file is complete
+                        md5.update(byte)
+                md5.update('ACK'.encode())
+                header = HeaderBuilder.build_header( Operation.END_FILE.value, True, md5.hexdigest(),
+                                                     "", 0, "ACK".encode())  #Telling to the server that the file is complete
                 self.send(header)
             else:
                 print("The input file does not exit!")
