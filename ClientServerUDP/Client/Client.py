@@ -4,8 +4,8 @@ import time
 import json
 import base64
 import os
-from ClientServerUDP.Client.HeaderBuilder import HeaderBuilder
-from ClientServerUDP.Client.Operation import Operation
+from HeaderBuilder import HeaderBuilder
+from Operation import Operation
 import math
 
 

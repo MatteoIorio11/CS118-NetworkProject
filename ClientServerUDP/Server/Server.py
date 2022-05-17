@@ -1,7 +1,7 @@
 import hashlib
 
-from ClientServerUDP.Server.HeaderBuilder import HeaderBuilder
-from ClientServerUDP.Server.Operation import Operation
+from HeaderBuilder import HeaderBuilder
+from Operation import Operation
 import socket as sk
 import time
 import json
