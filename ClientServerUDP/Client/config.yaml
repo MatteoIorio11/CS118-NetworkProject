@@ -1,0 +1,4 @@
+buffer_size: 8192
+time_to_sleep: 0.001
+path: files
+timeout: 3

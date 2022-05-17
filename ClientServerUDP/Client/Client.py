@@ -1,18 +1,26 @@
 import hashlib
-import socket as sk
+import yaml
 import time
 import json
 import base64
 import os
+import math
+import socket as sk
 from HeaderBuilder import HeaderBuilder
 from Operation import Operation
-import math
 
 
 class Client:
     server_address = ''
     port = 0
+    path = os.path.join(os.getcwd(), 'Client')
     def __init__(self):
+        file = os.path.join(self.path, 'config.yaml')  # path of the configuration file
+        with open(file, 'r') as file:
+            dictionary = yaml.load(file, Loader=yaml.Loader)
+        self.buffer_size = dictionary['buffer_size']
+        self.time_to_sleep = dictionary['time_to_sleep']
+        self.path = os.path.join(self.path, dictionary['path'])
         self.sock = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
     
     def set_server_adress(self, server_address, port):
@@ -44,7 +52,6 @@ class Client:
         data_json = json.loads(data.decode())
         md5_hash = hashlib.md5()
         md5_hash.update(base64.b64decode(data_json['metadata']))
-        res = md5_hash.hexdigest()
         if not data_json['status'] or md5_hash.hexdigest() != data_json['checksum']:    # if something whent wrong
             raise Exception(base64.b64decode(data_json['metadata']))
         menu = base64.b64decode(data_json['metadata'])    #decode menu
@@ -52,7 +59,9 @@ class Client:
     
     def download_file(self, file_name):
         while True:
-            header = HeaderBuilder.build_header(Operation.DOWNLOAD.value, True, hash(''), file_name, 0, "".encode())    #create header for downloading a file
+            md5 = hashlib.md5()
+            md5.update("ACK".encode())
+            header = HeaderBuilder.build_header(Operation.DOWNLOAD.value, True, md5.hexdigest(), file_name, 0, "ACK".encode())
             self.send(header)
             ack = self.sock.recv(4096)    #waiting for an ack from the server
             ack_json = json.loads(ack.decode())
@@ -63,7 +72,7 @@ class Client:
             buffer_size = 12_000
             cont_packs = 0
             md5_hash = hashlib.md5()
-            with open(file_name,'wb') as f:
+            with open(os.path.join(self.path, file_name),'wb') as f:
                 while True:
                     data = self.sock.recv(buffer_size)
                     data_json = json.loads(data.decode())
@@ -91,9 +100,9 @@ class Client:
     
     def upload(self, file):
         while True:
-            if file in os.listdir(os.getcwd()):
-                buffer_size = 8192
-                tot_packs = math.ceil(os.path.getsize(os.path.join(os.getcwd(), file))/buffer_size)
+            if file in os.listdir(self.path):
+                buffer_size = self.buffer_size
+                tot_packs = math.ceil(os.path.getsize(os.path.join(self.path, file))/buffer_size)
                 md5 = hashlib.md5()
                 md5.update(str(tot_packs).encode())
                 upload_request = HeaderBuilder.build_header(Operation.UPLOAD.value, True, md5.hexdigest(),
@@ -110,7 +119,7 @@ class Client:
                 cont_packs = 0
                 print('\n\r Sending the file %s to the destination' % str(file))
                 md5 = hashlib.md5()
-                with open(os.path.join(os.getcwd(), file), 'rb') as handle:
+                with open(os.path.join(self.path, file), 'rb') as handle:
                     byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
                     cont_packs += 1
                     md5.update(byte)
@@ -121,7 +130,6 @@ class Client:
                         percent = int(cont_packs*100/tot_packs)
                         cont_packs += 1
                         print("{:03d}".format(percent), "%", end='\r')
-                        time.sleep(0.001)
                         byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
                         md5.update(byte)
                 md5.update('ACK'.encode())
@@ -129,7 +137,8 @@ class Client:
                                                      "", 0, "ACK".encode())  #Telling to the server that the file is complete
                 self.send(header)
             else:
-                print("The input file does not exit!")
+                print("\nThe input file does not exit!\n")
+                break
             final_ack = self.sock.recv(4096)    #waiting for an ack from the server
             final_ack_json = json.loads(final_ack.decode())
             if not final_ack_json['status']:
@@ -140,40 +149,8 @@ class Client:
 
     def send(self, message):
         self.sock.sendto(message.encode(), (self.server_address, self.port))
-        time.sleep(0.001)
+        time.sleep(self.time_to_sleep)
 
     def close_connection(self):
         self.sock.close()
 
-
-def main():
-    client = Client()
-    try:
-        client.set_server_adress('localhost', 20000)
-        menu = client.get_menu()
-        while True:
-            print(menu)
-            operation = int(input("Select an operation among the ones above: "))
-            if operation == 1:
-                print(client.get_files_on_server())
-            elif operation == 2:
-                file = input("Write the name of the file that you want to download ")
-                client.download_file(file)
-            elif operation == 3:
-                file = input("Write the name of the file that you want to upload on the server ")
-                client.upload(file)
-            elif operation == 4:
-                client.close_connection()
-                break
-            else:
-                print("Wrong number")
-        
-        time.sleep(1)
-    except Exception as info:
-        print(info)
-    finally:
-        client.close_connection()
-
-
-if __name__ == "__main__":
-    main()

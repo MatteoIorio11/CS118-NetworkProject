@@ -61,7 +61,6 @@ class Server:
         file = os.path.join(self.path, 'config.yaml')  # path of the configuration file
         with open(file, 'r') as file:
             dictionary = yaml.load(file, Loader=yaml.Loader)
-        print(dictionary)
         self.address = str(dictionary['address'])
         self.port = dictionary['port']
         self.buffer_size = dictionary['buffer_size']
@@ -141,6 +140,9 @@ class Server:
         print("The Server is ready to receive the file from the Client.\n")
         buffer_reader_size = 16_384
         file_name = message['file_name']
+        if file_name in os.listdir(self.path):
+            print("AAAAAA")
+            file_name = os.path.splitext(file_name)[0] + "(copy)" + os.path.splitext(file_name)[1]
         tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
         cont_packs = 0
         md5 = hashlib.md5()
@@ -155,7 +157,7 @@ class Server:
                 checksum = data_json['checksum']
                 md5.update(base64.b64decode(data_json['metadata']))
                 res = md5.hexdigest()
-                print(checksum + " " + str(res))
+                
                 if not data_json['status'] or checksum != res :
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
@@ -164,8 +166,6 @@ class Server:
                     cont_packs += 1
                 file = base64.b64decode(data_json['metadata'])
                 f.write(file)
-                print("Received a packet from the client...\n")
-        print("tot: ", tot_packs, "cont: ", cont_packs)
         ack = HeaderBuilder.build_header(Operation.ACK.value, True, hash(''), "", 0, "".encode())
         if tot_packs != cont_packs :
             print("Not all packages have been arrived")
@@ -199,7 +199,6 @@ class Server:
             header = json.loads(message.decode())  # Decoding of the file and parsing It in to the JSON format
             operation = header['operation']  # Get the Operations requested
             file_name = header['file_name']  # Get the file name
-            print(header)
             if operation == Operation.OPEN_CONNECTION.value:
                 self.send_menu(client)
 
