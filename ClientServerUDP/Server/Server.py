@@ -86,7 +86,9 @@ class Server:
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir(self.path)
         metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
-        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True, hash(metadata),
+        md5_hash = hashlib.md5()
+        md5_hash.update(metadata.encode())
+        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True, md5_hash.hexdigest(),
                                             "", 0, metadata.encode())
         self.send_package(client, header)
         print('\n\r Sending all the files in the Directory...')
@@ -177,7 +179,9 @@ class Server:
         time.sleep(self.time_to_sleep)
 
     def send_menu(self, destination):
-        header = HeaderBuilder.build_header(Operation.ACK.value, True, hash(self.menu), "", 0, self.menu.encode())
+        md5_hash = hashlib.md5()
+        md5_hash.update(self.menu.encode())
+        header = HeaderBuilder.build_header(Operation.ACK.value, True, md5_hash.hexdigest(), "", 0, self.menu.encode())
         self.send_package(destination, header)
 
     # Argument : self

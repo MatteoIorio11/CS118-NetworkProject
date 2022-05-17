@@ -21,21 +21,31 @@ class Client:
         self.port = port
         
     def get_files_on_server(self):
-        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True, hash(''), "", 0, "".encode())    #create header for getting files
+        md5_hash = hashlib.md5()
+        md5_hash.update('ACK'.encode())
+        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True, md5_hash.hexdigest(), "", 0, "ACK".encode())    #create header for getting files
         self.send(header)
         data = self.sock.recv(4096)
         data_json = json.loads(data.decode())
-        if not data_json['status'] :    #if something whent wrong
+        md5_hash = hashlib.md5()
+        md5_hash.update(base64.b64decode(data_json['metadata']))
+        res = md5_hash.hexdigest()
+        if not data_json['status'] or res != data_json['checksum']:    #if something whent wrong
             raise Exception(base64.b64decode(data_json['metadata']))
         files = base64.b64decode(data_json['metadata'])    #decode files name
         return files.decode()
         
     def get_menu(self):
-        header = HeaderBuilder.build_header(Operation.OPEN_CONNECTION.value, True, hash(''), "", 0, "".encode())    #create header for getting the menu
+        md5_hash = hashlib.md5()
+        md5_hash.update('ACK'.encode())
+        header = HeaderBuilder.build_header(Operation.OPEN_CONNECTION.value, True, md5_hash.hexdigest(), "", 0, "ACK".encode())    #create header for getting the menu
         self.send(header)
         data = self.sock.recv(4096)
         data_json = json.loads(data.decode())
-        if not data_json['status'] :    #if something whent wrong
+        md5_hash = hashlib.md5()
+        md5_hash.update(base64.b64decode(data_json['metadata']))
+        res = md5_hash.hexdigest()
+        if not data_json['status'] or md5_hash.hexdigest() != data_json['checksum']:    # if something whent wrong
             raise Exception(base64.b64decode(data_json['metadata']))
         menu = base64.b64decode(data_json['metadata'])    #decode menu
         return menu.decode()
