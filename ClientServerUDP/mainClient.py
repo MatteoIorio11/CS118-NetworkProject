@@ -1,4 +1,6 @@
 from Client.Client import Client
+import HeaderFactory
+
 def main():
     client = Client()
     try:

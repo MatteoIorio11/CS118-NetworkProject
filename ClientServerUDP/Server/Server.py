@@ -1,12 +1,10 @@
 import hashlib
-
-from HeaderBuilder import HeaderBuilder
+from HeaderFactory import HeaderFactory
 from Operation import Operation
 import socket as sk
 import time
 import json
 import os
-import yaml
 import base64
 import threading
 import math
@@ -58,16 +56,16 @@ class Server:
 
     # Define the constructor of the Server
     def __init__(self):
-        file = os.path.join(self.path, 'config.yaml')  # path of the configuration file
-        with open(file, 'r') as file:
-            dictionary = yaml.load(file, Loader=yaml.Loader)
+        file = os.path.join(self.path, 'config.json')  # path of the configuration file
+        with open(file, 'r') as openfile:
+            dictionary = json.load(openfile)
         self.address = str(dictionary['address'])
         self.port = dictionary['port']
         self.buffer_size = dictionary['buffer_size']
         self.time_to_sleep = dictionary['time_to_sleep']
         self.path = os.path.join(self.path, dictionary['path'])
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
-        self.socket.settimeout(dictionary['timeout']*1000)
+        self.socket.settimeout(dictionary['timeout'])
 
     # Argument : self
     # This method set the server address -> set the IP and the PORT and then the creation of the Server's socket
@@ -87,8 +85,7 @@ class Server:
         metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
         md5_hash = hashlib.md5()
         md5_hash.update(metadata.encode())
-        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True, md5_hash.hexdigest(),
-                                            "", 0, metadata.encode())
+        header = HeaderFactory.build_operation_header_wchecksum(Operation.GET_FILES.value, md5_hash.hexdigest(), metadata.encode())
         self.send_package(client, header)
         print('\n\r Sending all the files in the Directory...')
         return metadata
@@ -103,7 +100,7 @@ class Server:
             file_size = math.ceil(os.path.getsize(os.path.join(self.path, file))/self.buffer_size)
             md5 = hashlib.md5()
             md5.update(str(file_size).encode())
-            header = HeaderBuilder.build_header(Operation.ACK.value, True, md5.hexdigest(), "", 0, str(file_size).encode())
+            header = HeaderFactory.build_ack_header_wchecksum(md5.hexdigest(), str(file_size).encode())
             self.send_package(client, header)
             time.sleep(self.time_to_sleep)
             md5_hash = hashlib.md5()
@@ -113,9 +110,9 @@ class Server:
                 md5_hash.update(byte)
                 while byte:
                     print(status_download)
-                    header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, True,
-                                                        md5_hash.hexdigest(),
-                                                        file, self.buffer_size, byte)
+                    header = HeaderFactory.build_operation_header_wsize(Operation.SENDING_FILE.value, file,
+                                                            md5_hash.hexdigest(),
+                                                            self.buffer_size, byte)
                     percentage = int((status_download*100)/file_size)
                     self.send_package(client, header)
                     print("Percentage of sent packages : " + str(percentage) + "\n")
@@ -123,14 +120,15 @@ class Server:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     status_download = status_download + 1
                     md5_hash.update(byte)
-            md5_hash.update('ACK'.encode())
-            header = HeaderBuilder.build_header(Operation.END_FILE.value, True, md5_hash.hexdigest(),
-                                                "", 0, "ACK".encode())  # Send the bytes read to the Client
+            md5_hash.update('END'.encode())
+            header = HeaderFactory.build_end_header() # Send the bytes read to the Client
             print('\n\r All packages have been sent to the client.')
             self.send_package(client, header)
         else:
-            header = HeaderBuilder.build_header(Operation.ERROR.value, False, hash("Error"),
-                                                "", 0, "The input file does not exist in the directory".encode())
+            md5 = hashlib.md5()
+            md5.update("The input file does not exist in the directory".encode())
+            header = HeaderFactory.build_error_header(md5.hexdigest(),
+                                                      "The input file does not exist in the directory".encode())
             self.send_package(client, header)
 
     # Argument : self
@@ -142,17 +140,25 @@ class Server:
         print("The Server is ready to receive the file from the Client.\n")
         buffer_reader_size = 16_384
         file_name = message['file_name']
-        if file_name in os.listdir(self.path):
-            print("AAAAAA")
-            file_name = os.path.splitext(file_name)[0] + "(copy)" + os.path.splitext(file_name)[1]
+        cont = 1
+        if file in os.listdir(self.path):
+            for file_dir in os.listdir(self.path):
+                split_file = file_dir.split('.')[0]
+                print(split_file)
+                if split_file.__contains__('('):
+                    split_file = split_file.split('(')[0]
+                if (split_file + file_dir.split('.')[1]) == file_name:
+                    cont = cont + 1
+            file_name = file.split('.')[0].split('(')[0] + "(" + str(cont) + ")" + file.split('.')[1]
         tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
         cont_packs = 0
         md5 = hashlib.md5()
         md5.update("ACK".encode())
-        header = HeaderBuilder.build_header(Operation.ACK.value, True, md5.hexdigest(), "", 0, "ACK".encode())
+        header = HeaderFactory.build_ack_header()
         self.send_package(client, header)
         md5 = hashlib.md5()
-        with open(os.path.join(self.path, file), 'wb') as f:
+        print(file_name)
+        with open(os.path.join(self.path, file_name), 'wb') as f:
             while True:
                 data = self.socket.recv(buffer_reader_size)
                 data_json = json.loads(data.decode())
@@ -168,10 +174,12 @@ class Server:
                     cont_packs += 1
                 file = base64.b64decode(data_json['metadata'])
                 f.write(file)
-        ack = HeaderBuilder.build_header(Operation.ACK.value, True, hash(''), "", 0, "".encode())
+        ack = HeaderFactory.build_ack_header()
         if tot_packs != cont_packs :
             print("Not all packages have been arrived")
-            ack = HeaderBuilder.build_header(Operation.ACK.value, False, hash(''), "", 0, "".encode())
+            md5 = hashlib.md5()
+            md5.update("Not all packages have been arrived".encode())
+            ack = HeaderFactory.build_error_header(md5.hexdigest(), "Not all packages have been arrived".encode())
         else:
             print('\n\r All packages have been saved, the File is now available in the path : ' +
                   os.path.join(self.path, str(file_name)))
@@ -188,7 +196,7 @@ class Server:
     def send_menu(self, destination):
         md5_hash = hashlib.md5()
         md5_hash.update(self.menu.encode())
-        header = HeaderBuilder.build_header(Operation.ACK.value, True, md5_hash.hexdigest(), "", 0, self.menu.encode())
+        header = HeaderFactory.build_operation_header_wchecksum(Operation.ACK.value, md5_hash.hexdigest(), self.menu.encode())
         self.send_package(destination, header)
 
     # Argument : self
@@ -206,10 +214,12 @@ class Server:
 
             # First Operations : GET FILES
             elif operation == Operation.GET_FILES.value:
+                #t = threading.Thread(target=self.get_files, arg=client)
+                #t.start()
                 self.get_files(client)
 
             elif operation == Operation.DOWNLOAD.value:
-                t = threading.Thread(target=self.download, args=(file_name,client))
+                t = threading.Thread(target=self.download, args=(file_name, client))
                 t.start() 
 
             elif operation == Operation.UPLOAD.value:

@@ -1,6 +1,5 @@
 from Server.Server import Server
 
-
 def main():
     server = Server()
     server.start_server()
