@@ -75,36 +75,31 @@ class Client:
             print('\n\r Sending the file %s to the destination', str(file))
             with open(os.path.join(os.getcwd(), file), 'rb') as handle:
                 byte = handle.read(buffer_size)   # Read a buffer size
+                cont_packs += 1
                 while byte:
                     header = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, buffer_size, byte)  # Send the read bytes to the Client
                     self.send(header)
                     cont_packs += 1
                     percent = int(cont_packs*100/tot_packs)
                     print("{:03d}".format(percent), "%", end='\r')
-                    time.sleep(0.01)
+                    time.sleep(0.001)
                     byte = handle.read(buffer_size)   # Read a buffer size
             header = HeaderBuilder.build_header( Operation.END_FILE.value, True,
                                                  "", 0, "".encode())  # Send the bytes read to the Client
             self.send(header)
         else:
-            header = HeaderBuilder.build_header(Operation.ERROR.value, False,
-                                                "", 0, "The input file does not exist in the directory".encode())
-            self.send(header)
+            print("The input file does not exit!")
 
     def send(self, message):
         self.sock.sendto(message.encode(), (self.server_address, self.port))
-        time.sleep(0.01)
+        time.sleep(0.001)
 
     def close_connection(self):
-        print ('closing socket')
-        message = HeaderBuilder.build_header(Operation.EXIT.value, True, "", 0, "".encode())
-        self.send(message)
         self.sock.close()
 
 
 def main():
     client = Client()
-
     try:
         client.set_server_adress('localhost', 20000)
         menu = client.get_menu()

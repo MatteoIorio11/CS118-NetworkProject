@@ -19,4 +19,4 @@ class Operation(Enum):
     SENDING_FILE = 6
     END_FILE = 7
     ERROR = 8
-
+    OPEN_CONNECTION = 9

@@ -6,6 +6,7 @@ import json
 import os
 import yaml
 import base64
+import threading
 
 
 # Server Class.
@@ -173,7 +174,8 @@ class Server:
                 self.get_files(client)
 
             elif operation == Operation.DOWNLOAD.value:
-                self.download(file_name, client)
+                t = threading.Thread(target=self.download, args=(file_name,client))
+                t.start() 
 
             elif operation == Operation.UPLOAD.value:
                 self.upload(file_name, header, client)
