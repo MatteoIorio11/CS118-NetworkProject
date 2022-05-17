@@ -5,6 +5,7 @@ import base64
 import os
 from HeaderBuilder import HeaderBuilder
 from Operation import Operation
+import math
 
 
 class Client:
@@ -39,59 +40,76 @@ class Client:
         return menu.decode()
     
     def download_file(self, file_name):
-        header = HeaderBuilder.build_header(Operation.DOWNLOAD.value, True, file_name, 0, "".encode())    #create header for downloading a file
-        self.send(header)
-        ack = self.sock.recv(4096)    #waiting for an ack from the server
-        ack_json = json.loads(ack.decode())
-        if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value:
-            raise Exception(base64.b64decode(ack_json['metadata']).decode())
-        #now the server is ready to send packets and the client to receive them
-        tot_packs = float(base64.b64decode(ack_json['metadata']).decode())
-        buffer_size = 12_000
-        cont_packs = 0
-        with open(file_name,'wb') as f:
-            while True:
-                data = self.sock.recv(buffer_size)
-                data_json = json.loads(data.decode())
-                cont_packs += 1
-                percent = int(cont_packs*100/tot_packs)    #calculating percentage of downloaded packet
-                print("{:02d}".format(percent), "%", end='\r')    #printing percentage    
-                if not data_json['status']:
-                    raise Exception(base64.b64decode(data_json['metadata']))
-                if data_json['operation'] == Operation.END_FILE.value:
-                    break
-                file = base64.b64decode(data_json['metadata'])
-                f.write(file)    #write the read bytes
+        while True:
+            header = HeaderBuilder.build_header(Operation.DOWNLOAD.value, True, file_name, 0, "".encode())    #create header for downloading a file
+            self.send(header)
+            ack = self.sock.recv(4096)    #waiting for an ack from the server
+            ack_json = json.loads(ack.decode())
+            if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value:
+                raise Exception(base64.b64decode(ack_json['metadata']).decode())
+            #now the server is ready to send packets and the client to receive them
+            tot_packs = int(base64.b64decode(ack_json['metadata']).decode())   #tot packs that i should receive
+            buffer_size = 12_000
+            cont_packs = 0
+            with open(file_name,'wb') as f:
+                while True:
+                    data = self.sock.recv(buffer_size)
+                    data_json = json.loads(data.decode())
+                    if not data_json['status']:
+                        raise Exception(base64.b64decode(data_json['metadata']))
+                    if data_json['operation'] == Operation.END_FILE.value:
+                        break
+                    else:
+                        cont_packs += 1
+                    percent = int(cont_packs*100/tot_packs)    #calculating percentage of downloaded packet
+                    print("{:02d}".format(percent), "%", end='\r')    #printing percentage    
+                    file = base64.b64decode(data_json['metadata'])
+                    f.write(file)    #write the read bytes
+            print("tot: ", tot_packs, "cont: ", cont_packs)
+            if tot_packs == cont_packs:    #all packs have been arrived
+                print("\nThe file has been downloaded correctly\n")
+                break
+            print("\nNot all packets have been arrived downloading again...\n")
+            #not all packs have been arrived
+                
     
     def upload(self, file):
-        upload_request = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, 0, "".encode())    #creating header for uploading file
-        self.send(upload_request)
-        ack = self.sock.recv(4096)    #waiting for an ack from the server
-        ack_json = json.loads(ack.decode())
-        if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value:
-            raise Exception(base64.b64decode(ack_json['metadata']))
-        #now the client is ready to send packets and the server to receive them
-        buffer_size = 8192
-        cont_packs = 0
-        if file in os.listdir(os.getcwd()):
-            tot_packs = os.path.getsize(os.path.join(os.getcwd(), file))/buffer_size
-            print('\n\r Sending the file %s to the destination', str(file))
-            with open(os.path.join(os.getcwd(), file), 'rb') as handle:
-                byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
-                cont_packs += 1
-                while byte:
-                    header = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, buffer_size, byte)  # Send the read bytes to the Client
-                    self.send(header)
-                    cont_packs += 1
-                    percent = int(cont_packs*100/tot_packs)
-                    print("{:03d}".format(percent), "%", end='\r')
-                    time.sleep(0.001)
+        while True:
+            if file in os.listdir(os.getcwd()):
+                buffer_size = 8192
+                tot_packs = math.ceil(os.path.getsize(os.path.join(os.getcwd(), file))/buffer_size)
+                upload_request = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, 0, str(tot_packs).encode())    #creating header for uploading file
+                self.send(upload_request)
+                ack = self.sock.recv(4096)    #waiting for an ack from the server
+                ack_json = json.loads(ack.decode())
+                if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value:
+                    raise Exception(base64.b64decode(ack_json['metadata']))
+                #now the client is ready to send packets and the server to receive them
+                cont_packs = 0
+                print('\n\r Sending the file %s to the destination' % str(file))
+                with open(os.path.join(os.getcwd(), file), 'rb') as handle:
                     byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
-            header = HeaderBuilder.build_header( Operation.END_FILE.value, True,
-                                                 "", 0, "".encode())  #Telling to the server that the file is complete
-            self.send(header)
-        else:
-            print("The input file does not exit!")
+                    cont_packs += 1
+                    while byte:
+                        header = HeaderBuilder.build_header(Operation.UPLOAD.value, True, file, buffer_size, byte)  # Send the read bytes to the Client
+                        self.send(header)
+                        percent = int(cont_packs*100/tot_packs)
+                        cont_packs += 1
+                        print("{:03d}".format(percent), "%", end='\r')
+                        time.sleep(0.001)
+                        byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
+                header = HeaderBuilder.build_header( Operation.END_FILE.value, True,
+                                                     "", 0, "".encode())  #Telling to the server that the file is complete
+                self.send(header)
+            else:
+                print("The input file does not exit!")
+            final_ack = self.sock.recv(4096)    #waiting for an ack from the server
+            final_ack_json = json.loads(final_ack.decode())
+            if not final_ack_json['status']:
+                print("\nSomething went wrong during the upload trying again...\n")
+            else:
+                print("\nFile correctly uploaded!\n")
+                break
 
     def send(self, message):
         self.sock.sendto(message.encode(), (self.server_address, self.port))

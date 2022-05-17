@@ -7,6 +7,7 @@ import os
 import yaml
 import base64
 import threading
+import math
 
 
 # Server Class.
@@ -93,7 +94,7 @@ class Server:
     def download(self, file, client):
         if file in os.listdir(self.path):
             print('Sending the file ' + str(file) + 'to the destination.\n')
-            file_size = os.path.getsize(os.path.join(self.path, file))/self.buffer_size
+            file_size = math.ceil(os.path.getsize(os.path.join(self.path, file))/self.buffer_size)
             header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, str(file_size).encode())
             self.send_package(client, header)
             time.sleep(self.time_to_sleep)
@@ -101,6 +102,7 @@ class Server:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
                 status_download = 1
                 while byte:
+                    print(status_download)
                     header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, True,
                                                         file, self.buffer_size, byte)
                     percentage = int((status_download*100)/file_size)
@@ -127,6 +129,8 @@ class Server:
         print("The Server is ready to receive the file from the Client.\n")
         buffer_reader_size = 16_384
         file_name = message['file_name']
+        tot_packs = int(base64.b64decode(message['metadata']).decode())   #tot packs that i should receive
+        cont_packs = 0
         header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, "".encode())
         self.send_package(client, header)
         with open(os.path.join(self.path, file), 'wb') as f:
@@ -137,11 +141,20 @@ class Server:
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
                     break
+                else:
+                    cont_packs += 1
                 file = base64.b64decode(data_json['metadata'])
                 f.write(file)
                 print("Received a packet from the client...\n")
-        print('\n\r All packages have been saved, the File is now available in the path : '
+        print("tot: ", tot_packs, "cont: ", cont_packs)
+        ack = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, "".encode())
+        if(tot_packs != cont_packs):
+            print("Not all packages have been arrived")
+            ack = HeaderBuilder.build_header(Operation.ACK.value, False, "", 0, "".encode())
+        else:
+            print('\n\r All packages have been saved, the File is now available in the path : '
               + os.path.join(self.path, str(file_name)))
+        self.send_package(client, ack)
 
     # Argument : self
     # Argument : destination
