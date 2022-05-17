@@ -1,5 +1,3 @@
-import hashlib
-
 from HeaderBuilder import HeaderBuilder
 from Operation import Operation
 import socket as sk
@@ -8,8 +6,6 @@ import json
 import os
 import yaml
 import base64
-import threading
-import math
 
 
 # Server Class.
@@ -25,7 +21,6 @@ import math
 #   | operation : Operation.XXX.value        |
 #   | file_name : beautiful_file.txt or  ""  |
 #   | status    : True Or False              |
-#   | checksum  : aaa                        |
 #   | size      : size of the file_name      |
 #   | metadata  : file content or ""         |
 #   |----------------------------------------|
@@ -60,15 +55,13 @@ class Server:
     def __init__(self):
         file = os.path.join(self.path, 'config.yaml')  # path of the configuration file
         with open(file, 'r') as file:
-            dictionary = yaml.load(file, Loader=yaml.Loader)
-        print(dictionary)
+            dictionary = yaml.load(file, Loader=yaml.FullLoader)
         self.address = str(dictionary['address'])
         self.port = dictionary['port']
         self.buffer_size = dictionary['buffer_size']
         self.time_to_sleep = dictionary['time_to_sleep']
         self.path = os.path.join(self.path, dictionary['path'])
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
-        self.socket.settimeout(dictionary['timeout']*1000)
 
     # Argument : self
     # This method set the server address -> set the IP and the PORT and then the creation of the Server's socket
@@ -86,9 +79,7 @@ class Server:
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir(self.path)
         metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
-        md5_hash = hashlib.md5()
-        md5_hash.update(metadata.encode())
-        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True, md5_hash.hexdigest(),
+        header = HeaderBuilder.build_header(Operation.GET_FILES.value, True,
                                             "", 0, metadata.encode())
         self.send_package(client, header)
         print('\n\r Sending all the files in the Directory...')
@@ -100,22 +91,16 @@ class Server:
     # the Server send It to the Client. The chunk size is 8192 bytes
     def download(self, file, client):
         if file in os.listdir(self.path):
-            print('Sending the file ' + str(file) + ' to the destination.\n')
-            file_size = math.ceil(os.path.getsize(os.path.join(self.path, file))/self.buffer_size)
-            md5 = hashlib.md5()
-            md5.update(str(file_size).encode())
-            header = HeaderBuilder.build_header(Operation.ACK.value, True, md5.hexdigest(), "", 0, str(file_size).encode())
+            print('Sending the file ' + str(file) + 'to the destination.\n')
+            file_size = os.path.getsize(os.path.join(self.path, file))/self.buffer_size
+            header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, str(file_size).encode())
             self.send_package(client, header)
             time.sleep(self.time_to_sleep)
-            md5_hash = hashlib.md5()
             with open(os.path.join(self.path, file), 'rb') as handle:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
                 status_download = 1
-                md5_hash.update(byte)
                 while byte:
-                    print(status_download)
                     header = HeaderBuilder.build_header(Operation.SENDING_FILE.value, True,
-                                                        md5_hash.hexdigest(),
                                                         file, self.buffer_size, byte)
                     percentage = int((status_download*100)/file_size)
                     self.send_package(client, header)
@@ -123,14 +108,12 @@ class Server:
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     status_download = status_download + 1
-                    md5_hash.update(byte)
-            md5_hash.update('ACK'.encode())
-            header = HeaderBuilder.build_header(Operation.END_FILE.value, True, md5_hash.hexdigest(),
-                                                "", 0, "ACK".encode())  # Send the bytes read to the Client
+            header = HeaderBuilder.build_header(Operation.END_FILE.value, True,
+                                                "", 0, "".encode())  # Send the bytes read to the Client
             print('\n\r All packages have been sent to the client.')
             self.send_package(client, header)
         else:
-            header = HeaderBuilder.build_header(Operation.ERROR.value, False, hash("Error"),
+            header = HeaderBuilder.build_header(Operation.ERROR.value, False,
                                                 "", 0, "The input file does not exist in the directory".encode())
             self.send_package(client, header)
 
@@ -143,39 +126,21 @@ class Server:
         print("The Server is ready to receive the file from the Client.\n")
         buffer_reader_size = 16_384
         file_name = message['file_name']
-        tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
-        cont_packs = 0
-        md5 = hashlib.md5()
-        md5.update("ACK".encode())
-        header = HeaderBuilder.build_header(Operation.ACK.value, True, md5.hexdigest(), "", 0, "ACK".encode())
+        header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, "".encode())
         self.send_package(client, header)
-        md5 = hashlib.md5()
         with open(os.path.join(self.path, file), 'wb') as f:
             while True:
                 data = self.socket.recv(buffer_reader_size)
                 data_json = json.loads(data.decode())
-                checksum = data_json['checksum']
-                md5.update(base64.b64decode(data_json['metadata']))
-                res = md5.hexdigest()
-                print(checksum + " " + str(res))
-                if not data_json['status'] or checksum != res :
+                if not data_json['status']:
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
                     break
-                else:
-                    cont_packs += 1
                 file = base64.b64decode(data_json['metadata'])
                 f.write(file)
                 print("Received a packet from the client...\n")
-        print("tot: ", tot_packs, "cont: ", cont_packs)
-        ack = HeaderBuilder.build_header(Operation.ACK.value, True, hash(''), "", 0, "".encode())
-        if tot_packs != cont_packs :
-            print("Not all packages have been arrived")
-            ack = HeaderBuilder.build_header(Operation.ACK.value, False, hash(''), "", 0, "".encode())
-        else:
-            print('\n\r All packages have been saved, the File is now available in the path : ' +
-                  os.path.join(self.path, str(file_name)))
-        self.send_package(client, ack)
+        print('\n\r All packages have been saved, the File is now available in the path : '
+              + os.path.join(self.path, str(file_name)))
 
     # Argument : self
     # Argument : destination
@@ -186,9 +151,7 @@ class Server:
         time.sleep(self.time_to_sleep)
 
     def send_menu(self, destination):
-        md5_hash = hashlib.md5()
-        md5_hash.update(self.menu.encode())
-        header = HeaderBuilder.build_header(Operation.ACK.value, True, md5_hash.hexdigest(), "", 0, self.menu.encode())
+        header = HeaderBuilder.build_header(Operation.ACK.value, True, "", 0, self.menu.encode())
         self.send_package(destination, header)
 
     # Argument : self
@@ -201,7 +164,7 @@ class Server:
             header = json.loads(message.decode())  # Decoding of the file and parsing It in to the JSON format
             operation = header['operation']  # Get the Operations requested
             file_name = header['file_name']  # Get the file name
-            print(header)
+
             if operation == Operation.OPEN_CONNECTION.value:
                 self.send_menu(client)
 
@@ -210,8 +173,7 @@ class Server:
                 self.get_files(client)
 
             elif operation == Operation.DOWNLOAD.value:
-                t = threading.Thread(target=self.download, args=(file_name,client))
-                t.start() 
+                self.download(file_name, client)
 
             elif operation == Operation.UPLOAD.value:
                 self.upload(file_name, header, client)
