@@ -2,6 +2,7 @@ import hashlib
 import signal
 
 from HeaderFactory import HeaderFactory
+from FileNameFactory import FileNameFactory
 from Operation import Operation
 from Utils  import Util
 import socket as sk
@@ -148,31 +149,12 @@ class Server:
     def upload(self, file, message, client):
         print("The Server is ready to receive the file from the Client.\n")
         buffer_reader_size = 16_384
-        file_name = message['file_name']
-        cont = 1
-        for file in os.listdir(self.path):
-            file = file.split('.')[0]
-            if file.__contains__('('):
-                file = file.split('(')[0] + '.' + file_name.split('.')[1]
-                print('AOO ' + file + ' AOO ' + file_name )
-                if file == file_name:
-                    cont = cont +1
-                elif file_name.__contains__('('):
-                    f_tmp = file_name.split('(')[0] + '.' + file_name.split('.')[1]
-                    if f_tmp == file:
-                        print(file)
-                        cont = cont+1
-            elif file == file_name:
-                cont = cont + 1
-        fk = message['file_name']
-        if cont > 1:
-            file_name = fk.split('.')[0] + '(' + str(cont) + ').' + fk.split('.')[1]
+        file_name = FileNameFactory.get_file_name(file, message['file_name'], self.path)        
         tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
         cont_packs = 0
         header = HeaderFactory.build_ack_header()
         self.send_package(client, header)
         md5 = hashlib.md5()
-        print(file_name)
         with open(os.path.join(self.path, file_name), 'wb') as f:
             while True:
                 data = self.socket.recv(buffer_reader_size)
