@@ -1,4 +1,6 @@
 import hashlib
+import signal
+
 from HeaderFactory import HeaderFactory
 from Operation import Operation
 import socket as sk
@@ -66,6 +68,12 @@ class Server:
         self.path = os.path.join(self.path, dictionary['path'])
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
         self.socket.settimeout(dictionary['timeout'])
+        signal.signal(signal.SIGINT, self.close_socket)
+
+    def close_socket(self):
+        print("The Server is closing...\n")
+        self.socket.close()
+        exit(0)
 
     # Argument : self
     # This method set the server address -> set the IP and the PORT and then the creation of the Server's socket
