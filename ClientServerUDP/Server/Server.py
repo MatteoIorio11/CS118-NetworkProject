@@ -120,8 +120,8 @@ class Server:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     status_download = status_download + 1
                     md5_hash.update(byte)
-            md5_hash.update('END'.encode())
-            header = HeaderFactory.build_end_header() # Send the bytes read to the Client
+            md5_hash.update('ACK'.encode())
+            header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value, md5_hash.hexdigest(), 'ACK'.encode()) # Send the bytes read to the Client
             print('\n\r All packages have been sent to the client.')
             self.send_package(client, header)
         else:
@@ -140,16 +140,13 @@ class Server:
         print("The Server is ready to receive the file from the Client.\n")
         buffer_reader_size = 16_384
         file_name = message['file_name']
-        cont = 1
-        if file in os.listdir(self.path):
-            for file_dir in os.listdir(self.path):
-                split_file = file_dir.split('.')[0]
-                print(split_file)
-                if split_file.__contains__('('):
-                    split_file = split_file.split('(')[0]
-                if (split_file + file_dir.split('.')[1]) == file_name:
-                    cont = cont + 1
-            file_name = file.split('.')[0].split('(')[0] + "(" + str(cont) + ")" + file.split('.')[1]
+        while True:
+            if not file_name in os.listdir(self.path):
+                print("AAAA")
+                break
+            else:
+                print(file_name)
+                file_name = file_name.split('.')[0] + '(copy).' + file_name.split('.')[1]
         tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
         cont_packs = 0
         md5 = hashlib.md5()
@@ -214,8 +211,8 @@ class Server:
 
             # First Operations : GET FILES
             elif operation == Operation.GET_FILES.value:
-                #t = threading.Thread(target=self.get_files, arg=client)
-                #t.start()
+                # t = threading.Thread(target=self.get_files, args=(client))
+                # t.start()
                 self.get_files(client)
 
             elif operation == Operation.DOWNLOAD.value:

@@ -92,6 +92,8 @@ class Client:
                     print("{:02d}".format(percent), "%", end='\r')    # printing percentage
                     file = base64.b64decode(data_json['metadata'])
                     f.write(file)    # write the read bytes
+                    print("tot: ", tot_packs, "cont: ", cont_packs)
+                    
             print("tot: ", tot_packs, "cont: ", cont_packs)
             if tot_packs == cont_packs:    # all packs have been arrived
                 print("\nThe file has been downloaded correctly\n")
@@ -112,8 +114,9 @@ class Client:
                 ack = self.sock.recv(4096)    # waiting for an ack from the server
                 ack_json = json.loads(ack.decode())
                 md5 = hashlib.md5()
-                md5.update(base64.b64decode(ack_json['metadata']))
+                md5.update('ACK'.encode())
                 checksum = ack_json['checksum']
+                print(checksum, ack_json['metadata'])
                 if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value or checksum != md5.hexdigest():
                     raise Exception(base64.b64decode(ack_json['metadata']))
                 # now the client is ready to send packets and the server to receive them
@@ -125,7 +128,7 @@ class Client:
                     cont_packs += 1
                     md5.update(byte)
                     while byte:
-                        header = HeaderFactory.build_operation_header(Operation.UPLOAD.value, md5.hexdigest(),
+                        header = HeaderFactory.build_operation_header_wchecksum(Operation.UPLOAD.value, md5.hexdigest(),
                                                             byte)  # Send the read bytes to the Client
                         self.send(header)
                         percent = int(cont_packs*100/tot_packs)
@@ -134,7 +137,7 @@ class Client:
                         byte = handle.read(buffer_size)   # Read buffer_size bytes from the file
                         md5.update(byte)
                 md5.update('ACK'.encode())
-                header = HeaderFactory.build_operation_header(Operation.END_FILE.value, md5.hexdigest(),
+                header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value, md5.hexdigest(),
                                                      "ACK".encode())  # Telling to the server that the file is complete
                 self.send(header)
             else:
