@@ -119,7 +119,7 @@ class Server:
                 while byte:
                     print(status_download)
                     header = HeaderFactory.build_operation_header_wsize(Operation.SENDING_FILE.value, file,
-                                                            Util.get_diegest(md5_hash),
+                                                            Util.get_digest(md5_hash),
                                                             self.buffer_size, byte)
                     percentage = int((status_download*100)/file_size)
                     self.send_package(client, header)
@@ -130,7 +130,7 @@ class Server:
                     md5_hash = Util.update_md5(md5_hash, byte)
             md5_hash = Util.update_md5(md5_hash, 'ACK'.encode())
             header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value,
-                                                                    Util.get_diegest(md5_hash), 'ACK'.encode()) # Send the bytes read to the Client
+                                                                    Util.get_digest(md5_hash), 'ACK'.encode()) # Send the bytes read to the Client
             print('\n\r All packages have been sent to the client.')
             self.send_package(client, header)
         else:
@@ -149,11 +149,17 @@ class Server:
         print("The Server is ready to receive the file from the Client.\n")
         buffer_reader_size = 16_384
         file_name = message['file_name']
+        cont = 1
         while True:
             if not file_name in os.listdir(self.path):
                 break
             else:
-                file_name = file_name.split('.')[0] + '(copy).' + file_name.split('.')[1]
+                file_name = file_name.split('.')[0]
+                if file_name.find('('):
+                    print('OO')
+                    cont = cont +1
+        fk = message['file_name']
+        file_name = fk.split('.')[0] + '(' + str(cont) + ').' + fk.split('.')[1]
         tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
         cont_packs = 0
         header = HeaderFactory.build_ack_header()
@@ -166,7 +172,7 @@ class Server:
                 data_json = json.loads(data.decode())
                 checksum = data_json['checksum']
                 md5 = Util.update_md5(md5, base64.b64decode(data_json['metadata']))
-                res = Util.get_diegest(md5)
+                res = Util.get_digest(md5)
                 if not data_json['status'] or checksum != res :
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:

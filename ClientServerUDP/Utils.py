@@ -14,5 +14,5 @@ class Util:
         return md5
 
     @staticmethod
-    def get_diegest(md5):
+    def get_digest(md5):
         return md5.hexdigest()
