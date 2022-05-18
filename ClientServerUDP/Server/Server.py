@@ -3,6 +3,7 @@ import signal
 
 from HeaderFactory import HeaderFactory
 from Operation import Operation
+from Utils  import Util
 import socket as sk
 import time
 import json
@@ -91,9 +92,9 @@ class Server:
         print('\n\r Received command : "list files" ')
         list_directories = os.listdir(self.path)
         metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
-        md5_hash = hashlib.md5()
-        md5_hash.update(metadata.encode())
-        header = HeaderFactory.build_operation_header_wchecksum(Operation.GET_FILES.value, md5_hash.hexdigest(), metadata.encode())
+        header = HeaderFactory.build_operation_header_wchecksum(Operation.GET_FILES.value,
+                                                                Util.get_hash_with_metadata(metadata.encode()),
+                                                                metadata.encode())
         self.send_package(client, header)
         print('\n\r Sending all the files in the Directory...')
         return metadata
@@ -106,20 +107,19 @@ class Server:
         if file in os.listdir(self.path):
             print('Sending the file ' + str(file) + ' to the destination.\n')
             file_size = math.ceil(os.path.getsize(os.path.join(self.path, file))/self.buffer_size)
-            md5 = hashlib.md5()
-            md5.update(str(file_size).encode())
-            header = HeaderFactory.build_ack_header_wchecksum(md5.hexdigest(), str(file_size).encode())
+            header = HeaderFactory.build_ack_header_wchecksum(Util.get_hash_with_metadata(str(file_size).encode()),
+                                                              str(file_size).encode())
             self.send_package(client, header)
             time.sleep(self.time_to_sleep)
             md5_hash = hashlib.md5()
             with open(os.path.join(self.path, file), 'rb') as handle:
                 byte = handle.read(self.buffer_size)   # Read a buffer size
                 status_download = 1
-                md5_hash.update(byte)
+                md5_hash = Util.update_md5(md5_hash, byte)
                 while byte:
                     print(status_download)
                     header = HeaderFactory.build_operation_header_wsize(Operation.SENDING_FILE.value, file,
-                                                            md5_hash.hexdigest(),
+                                                            Util.get_diegest(md5_hash),
                                                             self.buffer_size, byte)
                     percentage = int((status_download*100)/file_size)
                     self.send_package(client, header)
@@ -127,16 +127,17 @@ class Server:
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     status_download = status_download + 1
-                    md5_hash.update(byte)
-            md5_hash.update('ACK'.encode())
-            header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value, md5_hash.hexdigest(), 'ACK'.encode()) # Send the bytes read to the Client
+                    md5_hash = Util.update_md5(md5_hash, byte)
+            md5_hash = Util.update_md5(md5_hash, 'ACK'.encode())
+            header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value,
+                                                                    Util.get_diegest(md5_hash), 'ACK'.encode()) # Send the bytes read to the Client
             print('\n\r All packages have been sent to the client.')
             self.send_package(client, header)
         else:
             md5 = hashlib.md5()
-            md5.update("The input file does not exist in the directory".encode())
-            header = HeaderFactory.build_error_header(md5.hexdigest(),
-                                                      "The input file does not exist in the directory".encode())
+            header = HeaderFactory.build_error_header(
+                                    Util.get_hash_with_metadata("The input file does not exist in the directory".encode()),
+                                    "The input file does not exist in the directory".encode())
             self.send_package(client, header)
 
     # Argument : self
@@ -150,15 +151,11 @@ class Server:
         file_name = message['file_name']
         while True:
             if not file_name in os.listdir(self.path):
-                print("AAAA")
                 break
             else:
-                print(file_name)
                 file_name = file_name.split('.')[0] + '(copy).' + file_name.split('.')[1]
         tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
         cont_packs = 0
-        md5 = hashlib.md5()
-        md5.update("ACK".encode())
         header = HeaderFactory.build_ack_header()
         self.send_package(client, header)
         md5 = hashlib.md5()
@@ -168,9 +165,8 @@ class Server:
                 data = self.socket.recv(buffer_reader_size)
                 data_json = json.loads(data.decode())
                 checksum = data_json['checksum']
-                md5.update(base64.b64decode(data_json['metadata']))
-                res = md5.hexdigest()
-                
+                md5 = Util.update_md5(md5, base64.b64decode(data_json['metadata']))
+                res = Util.get_diegest(md5)
                 if not data_json['status'] or checksum != res :
                     raise Exception(base64.b64decode(data_json['metadata']))
                 if data_json['operation'] == Operation.END_FILE.value:
@@ -182,9 +178,8 @@ class Server:
         ack = HeaderFactory.build_ack_header()
         if tot_packs != cont_packs :
             print("Not all packages have been arrived")
-            md5 = hashlib.md5()
-            md5.update("Not all packages have been arrived".encode())
-            ack = HeaderFactory.build_error_header(md5.hexdigest(), "Not all packages have been arrived".encode())
+            ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata("Not all packages have been arrived".encode()),
+                                                   "Not all packages have been arrived".encode())
         else:
             print('\n\r All packages have been saved, the File is now available in the path : ' +
                   os.path.join(self.path, str(file_name)))
@@ -199,9 +194,9 @@ class Server:
         time.sleep(self.time_to_sleep)
 
     def send_menu(self, destination):
-        md5_hash = hashlib.md5()
-        md5_hash.update(self.menu.encode())
-        header = HeaderFactory.build_operation_header_wchecksum(Operation.ACK.value, md5_hash.hexdigest(), self.menu.encode())
+        header = HeaderFactory.build_operation_header_wchecksum(Operation.ACK.value,
+                                                                Util.get_hash_with_metadata(self.menu.encode()),
+                                                                self.menu.encode())
         self.send_package(destination, header)
 
     # Argument : self
@@ -231,6 +226,4 @@ class Server:
                 self.upload(file_name, header, client)
 
             elif operation == Operation.EXIT.value:
-                self.socket.close()
-                print("The Server is closing...")
-                return
+                print("One client has disconnected.\n")
