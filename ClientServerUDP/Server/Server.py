@@ -150,16 +150,23 @@ class Server:
         buffer_reader_size = 16_384
         file_name = message['file_name']
         cont = 1
-        while True:
-            if not file_name in os.listdir(self.path):
-                break
-            else:
-                file_name = file_name.split('.')[0]
-                if file_name.find('('):
-                    print('OO')
+        for file in os.listdir(self.path):
+            file = file.split('.')[0]
+            if file.__contains__('('):
+                file = file.split('(')[0] + '.' + file_name.split('.')[1]
+                print('AOO ' + file + ' AOO ' + file_name )
+                if file == file_name:
                     cont = cont +1
+                elif file_name.__contains__('('):
+                    f_tmp = file_name.split('(')[0] + '.' + file_name.split('.')[1]
+                    if f_tmp == file:
+                        print(file)
+                        cont = cont+1
+            elif file == file_name:
+                cont = cont + 1
         fk = message['file_name']
-        file_name = fk.split('.')[0] + '(' + str(cont) + ').' + fk.split('.')[1]
+        if cont > 1:
+            file_name = fk.split('.')[0] + '(' + str(cont) + ').' + fk.split('.')[1]
         tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
         cont_packs = 0
         header = HeaderFactory.build_ack_header()
