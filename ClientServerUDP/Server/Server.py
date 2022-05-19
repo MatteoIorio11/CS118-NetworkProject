@@ -27,7 +27,7 @@ import math
 #   | operation : Operation.XXX.value        |
 #   | file_name : beautiful_file.txt or  ""  |
 #   | status    : True Or False              |
-#   | checksum  : aaa                        |
+#   | checksum  : f1e069787e...              |
 #   | size      : size of the file_name      |
 #   | metadata  : file content or ""         |
 #   |----------------------------------------|
@@ -39,6 +39,8 @@ import math
 # * The "status" is a field where the Server can notify the Client of an error, for example if a Client request
 #   Operation.Download operation and the Client send a file that is not contained in the Server's path, the
 #   status field will be False, because the file requested does not exist in the Server's path.
+# * The "checksum" field is used for the integrity of our messages, this field has the hashlib.md5().hexdigest()
+#   of the metadata. With this field we can have the integrity.
 # * The "size" stands for the "file_name"'s size, this field can be < 0 > if the Client's Operation
 #   does not interest a file ( for example Operation.GET_FILES), but if the Operation is Operation.UPLOAD in this field
 #   the Server will see the size of the file.

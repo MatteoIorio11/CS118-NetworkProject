@@ -4,6 +4,8 @@ from Operation import Operation
 import json
 
 
+# This class implements the Factory pattern. Is used in order to get a Header.
+# This class has more than one method, because we can create the same Header but with different parameters.
 class HeaderFactory:
     # Argument : self
     # Argument : operation      < Which Operations is sent (see Operation.py) >
@@ -23,6 +25,7 @@ class HeaderFactory:
                   }
         return json.dumps(header)
 
+    # Factory of an ACK header
     @staticmethod
     def build_ack_header():
         md5 = hashlib.md5()
@@ -37,6 +40,9 @@ class HeaderFactory:
         }
         return json.dumps(header)
 
+    # Argument checksum
+    # Argument : metadata -> what we have to send to the Client
+    # Factory of an ACK header
     @staticmethod
     def build_ack_header_wchecksum(checksum, metadata):
         header = {
@@ -49,6 +55,7 @@ class HeaderFactory:
         }
         return json.dumps(header)
 
+    # Factory of an end header, this will be used by the Client
     @staticmethod
     def build_end_header():
         md5 = hashlib.md5()
@@ -63,6 +70,10 @@ class HeaderFactory:
         }
         return json.dumps(header)
 
+    # Argument : Operation -> which operation we represent
+    # Argument checksum
+    # Argument : metadata -> what we have to send to the Client
+    # Factory of an Operation header
     @staticmethod
     def build_operation_header_wchecksum(operation, checksum, metadata):
         header = {
@@ -75,6 +86,11 @@ class HeaderFactory:
         }
         return json.dumps(header)
 
+    # Argument : Operation -> which operation we represent
+    # Argument : file -> file name
+    # Argument checksum
+    # Argument : metadata -> what we have to send to the Client
+    # Factory of an Operation header
     @staticmethod
     def build_operation_header_wfile(operation, file, checksum, metadata):
         header = {
@@ -87,6 +103,12 @@ class HeaderFactory:
         }
         return json.dumps(header)
 
+    # Argument : Operation -> which operation we represent
+    # Argument : file -> file name
+    # Argument checksum
+    # Argument : size
+    # Argument : metadata -> what we have to send to the Client
+    # Factory of an Operation header
     @staticmethod
     def build_operation_header_wsize(operation, file, checksum, size, metadata):
         header = {
@@ -99,6 +121,7 @@ class HeaderFactory:
         }
         return json.dumps(header)
 
+    # Factory of an Error Header
     @staticmethod
     def build_error_header(checksum, metadata):
         header = {
