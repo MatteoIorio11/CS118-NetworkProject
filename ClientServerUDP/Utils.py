@@ -21,3 +21,7 @@ class Util:
     @staticmethod
     def get_digest(md5):
         return md5.hexdigest()
+
+    @staticmethod
+    def get_percentage(status_download, file_size):
+        return int((status_download*100)/file_size)

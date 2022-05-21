@@ -18,5 +18,5 @@ class Operation(Enum):
     ACK = 5
     SENDING_FILE = 6
     END_FILE = 7
-    ERROR = 8
+    NAK = 8
     OPEN_CONNECTION = 9

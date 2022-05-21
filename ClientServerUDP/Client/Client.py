@@ -124,12 +124,11 @@ class Client:
                                                             Util.get_digest(md5),
                                                             byte)  # Send the read bytes to the Client
                         self.send(header)
-                        percent = int(cont_packs*100/tot_packs)
+                        percent = Util.get_percentage(cont_packs, tot_packs)
                         cont_packs += 1
                         print("{:03d}".format(percent), "%", end='\r')
                         byte = handle.read(buffer_size)   # Read buffer_size bytes from the file
                         md5 = Util.update_md5(md5, byte)
-                        print('AOO')
                 md5 = Util.update_md5(md5, 'ACK'.encode())
                 header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value,
                                                     Util.get_digest(md5),
