@@ -88,9 +88,6 @@ class Client:
                     print("{:02d}".format(percent), "%", end='\r')    # printing percentage
                     file = base64.b64decode(data_json['metadata'])
                     f.write(file)    # write the read bytes
-                    print("tot: ", tot_packs, "cont: ", cont_packs)
-                    
-            print("tot: ", tot_packs, "cont: ", cont_packs)
             if tot_packs == cont_packs:    # all packs have been arrived
                 print("\nThe file has been downloaded correctly\n")
                 break
