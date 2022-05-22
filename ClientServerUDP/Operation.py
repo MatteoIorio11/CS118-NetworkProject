@@ -8,15 +8,13 @@ from enum import Enum
 # 1) GET_FILES => The Client request to the Server all the files in the Server's directory
 # 2) DOWNLOAD  => The Client request to download a specific file
 # 3) UPLOAD    => The Client upload a file to the Server path
-# 4) EXIT      => The Client request to close the connection
-# 5) ACK       => The Server\Client Acknowledge, this operation is used for letting know that everything works good
+# 4) ACK       => The Server\Client Acknowledge, this operation is used for letting know that everything works good
 class Operation(Enum):
     GET_FILES = 1
     DOWNLOAD = 2
     UPLOAD = 3
-    EXIT = 4
-    ACK = 5
-    SENDING_FILE = 6
-    END_FILE = 7
-    NAK = 8
-    OPEN_CONNECTION = 9
+    ACK = 4
+    SENDING_FILE = 5
+    END_FILE = 6
+    NACK = 7
+    OPEN_CONNECTION = 8

@@ -107,7 +107,6 @@ class Client:
                 ack = self.sock.recv(4096)    # waiting for an ack from the server
                 ack_json = json.loads(ack.decode())
                 checksum = ack_json['checksum']
-                print(checksum, ack_json['metadata'])
                 if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value\
                         or checksum != Util.get_hash_with_metadata('ACK'.encode()):
                     raise Exception(base64.b64decode(ack_json['metadata']))

@@ -73,7 +73,7 @@ class Server:
         self.socket.settimeout(dictionary['timeout'])
         signal.signal(signal.SIGINT, self.close_socket)
 
-    def close_socket(self):
+    def close_socket(self, signum, frame):
         print("The Server is closing...\n")
         self.socket.close()
         exit(0)
@@ -212,8 +212,6 @@ class Server:
 
             # First Operations : GET FILES
             elif operation == Operation.GET_FILES.value:
-                # t = threading.Thread(target=self.get_files, args=(client))
-                # t.start()
                 self.get_files(client)
 
             elif operation == Operation.DOWNLOAD.value:
@@ -222,6 +220,3 @@ class Server:
 
             elif operation == Operation.UPLOAD.value:
                 self.upload(file_name, header, client)
-
-            elif operation == Operation.EXIT.value:
-                print("One client has disconnected.\n")

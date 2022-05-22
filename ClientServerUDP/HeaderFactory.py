@@ -125,7 +125,7 @@ class HeaderFactory:
     @staticmethod
     def build_error_header(checksum, metadata):
         header = {
-            "operation": Operation.NAK.value,
+            "operation": Operation.NACK.value,
             "file_name": "",
             "status": False,
             "checksum": checksum,
