@@ -76,8 +76,10 @@ class Client:
                     Util.update_md5(md5_hash, base64.b64decode(data_json['metadata']))
                     calculate_hash = Util.get_digest(md5_hash)
                     checksum = str(data_json['checksum'])
-                    if not data_json['status'] or calculate_hash != checksum:
+                    if not data_json['status']:
                         raise Exception(base64.b64decode(data_json['metadata']))
+                    elif calculate_hash != checksum:
+                        raise Exception('The checksum is not correct. Data integrity lost.')
                     if data_json['operation'] == Operation.END_FILE.value:
                         break
                     else:

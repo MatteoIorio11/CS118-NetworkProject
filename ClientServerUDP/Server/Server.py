@@ -164,8 +164,11 @@ class Server:
                 checksum = data_json['checksum']
                 md5 = Util.update_md5(md5, base64.b64decode(data_json['metadata']))
                 res = Util.get_digest(md5)
-                if not data_json['status'] or checksum != res:
+                if not data_json['status']:
                     raise Exception(base64.b64decode(data_json['metadata']))
+                elif checksum != res:
+                    print("The checksum is no correct.. Exit the communication with the Client.")
+                    break
                 if data_json['operation'] == Operation.END_FILE.value:
                     break
                 else:
