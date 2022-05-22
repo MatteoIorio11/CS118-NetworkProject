@@ -57,6 +57,7 @@ class Client:
     
     def download_file(self, file_name):
         while True:
+            error = False;
             header = HeaderFactory.build_operation_header_wfile(Operation.DOWNLOAD.value, file_name,
                                                                 Util.get_hash_with_metadata('ACK'.encode()), "ACK".encode())
             self.send(header)
@@ -79,7 +80,14 @@ class Client:
                     if not data_json['status']:
                         raise Exception(base64.b64decode(data_json['metadata']))
                     elif calculate_hash != checksum:
-                        raise Exception('The checksum is not correct. Data integrity lost.')
+                        print("Something went wrong during the download trying again")
+                        error = True
+                        ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
+                                                               "Not all packages have been arrived".encode()),
+                                                               "Not all packages have been arrived".encode())
+                        self.send(ack)
+                        time.sleep(0.5)
+                        break                        
                     if data_json['operation'] == Operation.END_FILE.value:
                         break
                     else:
@@ -88,7 +96,8 @@ class Client:
                     print("{:02d}".format(percent), "%", end='\r')    # printing percentage
                     file = base64.b64decode(data_json['metadata'])
                     f.write(file)    # write the read bytes
-            if tot_packs == cont_packs:    # all packs have been arrived
+           
+            if tot_packs == cont_packs and error == False:    # all packs have been arrived
                 print("\nThe file has been downloaded correctly\n")
                 break
             print("\nNot all packets have been arrived downloading again...\n")
@@ -139,6 +148,7 @@ class Client:
             final_ack_json = json.loads(final_ack.decode())
             if not final_ack_json['status']:
                 print("\nSomething went wrong during the upload trying again...\n")
+                time.sleep(0.5)
             else:
                 print("\nFile correctly uploaded!\n")
                 break

@@ -119,13 +119,12 @@ class Server:
                 status_download = 1
                 md5_hash = Util.update_md5(md5_hash, byte)
                 while byte:
-                    print("{:03d}".format(status_download), "%", end='\r')
+                    percentage = Util.get_percentage(status_download, file_size)
+                    print("{:03d}".format(percentage), "%", end='\r')
                     header = HeaderFactory.build_operation_header_wsize(Operation.SENDING_FILE.value, file,
                                                                         Util.get_digest(md5_hash),
                                                                         self.buffer_size, byte)
-                    percentage = Util.get_percentage(status_download, file_size)
                     self.send_package(client, header)
-                    print("Percentage of sent packages : " + str(percentage) + "\n")
                     time.sleep(self.time_to_sleep)
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     status_download = status_download + 1
@@ -149,32 +148,41 @@ class Server:
     # Return
     # This method write the metadata in input inside the new file named : file.
     def upload(self, file, message, client):
-        print("The Server is ready to receive the file from the Client.\n")
-        buffer_reader_size = 16_384
-        file_name = FileNameFactory.get_file_name(file, message['file_name'], self.path)        
-        tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
-        cont_packs = 0
-        header = HeaderFactory.build_ack_header()
-        self.send_package(client, header)
-        md5 = hashlib.md5()
-        with open(os.path.join(self.path, file_name), 'wb') as f:
-            while True:
-                data = self.socket.recv(buffer_reader_size)
-                data_json = json.loads(data.decode())
-                checksum = data_json['checksum']
-                md5 = Util.update_md5(md5, base64.b64decode(data_json['metadata']))
-                res = Util.get_digest(md5)
-                if not data_json['status']:
-                    raise Exception(base64.b64decode(data_json['metadata']))
-                elif checksum != res:
-                    print("The checksum is no correct.. Exit the communication with the Client.")
-                    break
-                if data_json['operation'] == Operation.END_FILE.value:
-                    break
-                else:
-                    cont_packs += 1
-                file = base64.b64decode(data_json['metadata'])
-                f.write(file)
+        while True:
+            error = False
+            print("The Server is ready to receive the file from the Client.\n")
+            buffer_reader_size = 16_384
+            file_name = FileNameFactory.get_file_name(file, message['file_name'], self.path)        
+            tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
+            cont_packs = 0
+            header = HeaderFactory.build_ack_header()
+            self.send_package(client, header)
+            md5 = hashlib.md5()
+            with open(os.path.join(self.path, file_name), 'wb') as f:
+                while True:
+                    data = self.socket.recv(buffer_reader_size)
+                    data_json = json.loads(data.decode())
+                    checksum = data_json['checksum']
+                    md5 = Util.update_md5(md5, base64.b64decode(data_json['metadata']))
+                    res = Util.get_digest(md5)
+                    if not data_json['status']:
+                        raise Exception(base64.b64decode(data_json['metadata']))
+                    elif checksum != res:
+                        print("The checksum is no correct..")
+                        error = True
+                        ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
+                                                               "Not all packages have been arrived".encode()),
+                                                               "Not all packages have been arrived".encode())
+                        self.send_package(client, ack)
+                        break
+                    if data_json['operation'] == Operation.END_FILE.value:
+                        break
+                    else:
+                        cont_packs += 1
+                    file = base64.b64decode(data_json['metadata'])
+                    f.write(file)
+            if not error:
+                break
         ack = HeaderFactory.build_ack_header()
         if tot_packs != cont_packs:
             print("Not all packages have been arrived")
