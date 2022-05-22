@@ -23,11 +23,10 @@ Il protocollo di comunicazionedeve prevedere lo scambio di due tipi di messaggi:
 
 • il messaggio di risposta contiene la file list, ovvero la lista dei nomi dei file disponibili per la condivisione
 
-• L’invio del messaggio di risposta al comando get contenente il file richiesto, se presente, od un opportuno
+• L’invio del messaggio di risposta al comando get contenente il file richiesto, se presente, od un opportuno messaggio di errore
 
-messaggio di errore;
-• La ricezione di un messaggio put contenente il file da caricare sul server e l’invio di un messaggio di risposta con
-l’esito dell’operazione.
+
+• La ricezione di un messaggio put contenente il file da caricare sul server e l’invio di un messaggio di risposta con l’esito dell’operazione.
 
 # Funzionalità del client: I client deve fornire le seguenti funzionalità:
 • L’invio del messaggio list per richiedere la lista dei nomi dei file disponibili
@@ -36,5 +35,24 @@ l’esito dell’operazione.
 
 • La ricezione di un file richiesta tramite il messaggio di get o la gestione dell’eventuale errore
 
+
 • L’invio del messaggio put per effettuare l’upload di un file sul server e la ricezione del messaggio di risposta con
 l’esito dell’operazione.
+
+## How to RUN Server
+
+```
+python3 mainServer.py
+```
+After that you have to launch the Client.
+## How to RUN Client
+
+```
+python3 mainClient.py
+```
+More about how to use it in the ""Report.pdf""
+
+
+Email Sviluppatori : 
++ matteo.iorio2@studio.unibo.it
++ fabio.vincenzi2@studio.unibo.it
