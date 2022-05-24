@@ -14,6 +14,7 @@ class Client:
     server_address = ''
     port = 0
     path = os.path.join(os.getcwd(), 'Client')
+    timeout = 0
 
     def __init__(self):
         file = os.path.join(self.path, 'config.json')  # path of the configuration file
@@ -22,6 +23,7 @@ class Client:
         self.buffer_size = dictionary['buffer_size']
         self.time_to_sleep = dictionary['time_to_sleep']
         self.path = os.path.join(self.path, dictionary['path'])
+        self.timeout = dictionary['timeout']
         self.sock = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
 
     def set_server_adress(self, server_address, port):
@@ -56,52 +58,64 @@ class Client:
         return menu.decode()
     
     def download_file(self, file_name):
-        while True:
-            error = False;
-            header = HeaderFactory.build_operation_header_wfile(Operation.DOWNLOAD.value, file_name,
-                                                                Util.get_hash_with_metadata('ACK'.encode()), "ACK".encode())
-            self.send(header)
-            ack = self.sock.recv(4096)    # waiting for an ack from the server
-            ack_json = json.loads(ack.decode())
-            if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value:
-                raise Exception(base64.b64decode(ack_json['metadata']).decode())
-            # now the server is ready to send packets and the client to receive them
-            tot_packs = int(base64.b64decode(ack_json['metadata']).decode())   # tot packs that i should receive
-            buffer_size = 12_000
-            cont_packs = 0
-            md5_hash = hashlib.md5()
-            with open(os.path.join(self.path, file_name),'wb') as f:
-                while True:
-                    data = self.sock.recv(buffer_size)
-                    data_json = json.loads(data.decode())
-                    Util.update_md5(md5_hash, base64.b64decode(data_json['metadata']))
-                    calculate_hash = Util.get_digest(md5_hash)
-                    checksum = str(data_json['checksum'])
-                    if not data_json['status']:
-                        raise Exception(base64.b64decode(data_json['metadata']))
-                    elif calculate_hash != checksum:
-                        print("Something went wrong during the download trying again")
-                        error = True
-                        ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
-                                                               "Not all packages have been arrived".encode()),
-                                                               "Not all packages have been arrived".encode())
-                        self.send(ack)
-                        time.sleep(0.5)
-                        break                        
-                    if data_json['operation'] == Operation.END_FILE.value:
-                        break
-                    else:
-                        cont_packs += 1
-                    percent = int(cont_packs*100/tot_packs)    # calculating percentage of downloaded packet
-                    print("{:02d}".format(percent), "%", end='\r')    # printing percentage
-                    file = base64.b64decode(data_json['metadata'])
-                    f.write(file)    # write the read bytes
-           
-            if tot_packs == cont_packs and error == False:    # all packs have been arrived
-                print("\nThe file has been downloaded correctly\n")
-                break
-            print("\nNot all packets have been arrived downloading again...\n")
-            # not all packs have been arrived
+        try:
+            tries = 1
+            self.sock.settimeout(self.timeout)
+            while True:
+                error = False;
+                header = HeaderFactory.build_operation_header_wfile(Operation.DOWNLOAD.value, file_name,
+                                                                    Util.get_hash_with_metadata('ACK'.encode()), "ACK".encode())
+                self.send(header)
+                ack = self.sock.recv(4096)    # waiting for an ack from the server
+                ack_json = json.loads(ack.decode())
+                if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value:
+                    raise Exception(base64.b64decode(ack_json['metadata']).decode())
+                # now the server is ready to send packets and the client to receive them
+                tot_packs = int(base64.b64decode(ack_json['metadata']).decode())   # tot packs that i should receive
+                buffer_size = 12_000
+                cont_packs = 0
+                md5_hash = hashlib.md5()
+                with open(os.path.join(self.path, file_name),'wb') as f:
+                    while True:
+                        data = self.sock.recv(buffer_size)
+                        data_json = json.loads(data.decode())
+                        Util.update_md5(md5_hash, base64.b64decode(data_json['metadata']))
+                        calculate_hash = Util.get_digest(md5_hash)
+                        checksum = str(data_json['checksum'])
+                        if not data_json['status']:
+                            raise Exception(base64.b64decode(data_json['metadata']))
+                        elif calculate_hash != checksum:
+                            print("Something went wrong during the download trying again")
+                            error = True
+                            ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
+                                                                   "Not all packages have been arrived".encode()),
+                                                                   "Not all packages have been arrived".encode())
+                            self.send(ack)
+                            time.sleep(0.5)
+                            break
+                        if data_json['operation'] == Operation.END_FILE.value:
+                            break
+                        else:
+                            cont_packs += 1
+                        percent = int(cont_packs*100/tot_packs)    # calculating percentage of downloaded packet
+                        print("{:02d}".format(percent), "%", end='\r')    # printing percentage
+                        file = base64.b64decode(data_json['metadata'])
+                        f.write(file)    # write the read bytes
+
+                if tot_packs == cont_packs and error == False:    # all packs have been arrived
+                    print("\nThe file has been downloaded correctly\n")
+                    self.sock.settimeout(None)
+                    break
+                print("\nNot all packets have been arrived downloading again...\n")
+                tries = tries + 1
+                if tries > 5:
+                    print("Tried five times. EXIT THE OPERATION...")
+                    self.sock.settimeout(None)
+                    break
+                # not all packs have been arrived
+        except sk.timeout as e:
+            print("Socket timeout. EXIT THE OPERATION...")
+
 
     def upload(self, file):
         tries = 1 # How much time the Client has tried to send the package to the Server.

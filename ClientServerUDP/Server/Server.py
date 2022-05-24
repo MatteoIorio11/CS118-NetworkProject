@@ -94,14 +94,14 @@ class Server:
     # Return : All the files in the current directory
     # This method get all the files in the current directory of the server
     def get_files(self, client):
-        print('\n\r Received command : "list files" ')
+        print('Received command : "list files" ')
         list_directories = os.listdir(self.path)
         metadata = ''.join([(str(directory)+"\n") for directory in list_directories])
         header = HeaderFactory.build_operation_header_wchecksum(Operation.GET_FILES.value,
                                                                 Util.get_hash_with_metadata(metadata.encode()),
                                                                 metadata.encode())
         self.send_package(client, header)
-        print('\n\r Sending all the files in the Directory...')
+        print('Sending all the files in the Directory...')
         return metadata
 
     # Argument : file
@@ -112,7 +112,8 @@ class Server:
         try:
             self.socket.settimeout(self.timeout)
             if file in os.listdir(self.path):
-                print('Sending the file ' + str(file) + ' to the destination.\n')
+                print('Sending the file ' + str(file) + ' to the destination.')
+                # Creation of the ACK header
                 file_size = math.ceil(os.path.getsize(os.path.join(self.path, file))/self.buffer_size)
                 header = HeaderFactory.build_ack_header_wchecksum(Util.get_hash_with_metadata(str(file_size).encode()),
                                                                   str(file_size).encode())
@@ -122,22 +123,24 @@ class Server:
                 with open(os.path.join(self.path, file), 'rb') as handle:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
                     status_download = 1
-                    md5_hash = Util.update_md5(md5_hash, byte)
+                    md5_hash = Util.update_md5(md5_hash, byte) # Creation of the checksum
                     while byte:
                         percentage = Util.get_percentage(status_download, file_size)
                         print("{:03d}".format(percentage), "%", end='\r')
                         header = HeaderFactory.build_operation_header_wsize(Operation.SENDING_FILE.value, file,
                                                                             Util.get_digest(md5_hash),
                                                                             self.buffer_size, byte)
-                        self.send_package(client, header)
+                        self.send_package(client, header) # Sending to the Client what the Server read
                         time.sleep(self.time_to_sleep)
                         byte = handle.read(self.buffer_size)   # Read a buffer size
                         status_download = status_download + 1
                         md5_hash = Util.update_md5(md5_hash, byte)
                 md5_hash = Util.update_md5(md5_hash, 'ACK'.encode())
+                # Total read of the file
                 header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value,
                                                                         Util.get_digest(md5_hash),
-                                                                        'ACK'.encode())  # Send the bytes read to the Client
+                                                                        'ACK'.encode())
+                # Send the bytes read to the Client
                 print('\n\r All packages have been sent to the client.')
                 self.send_package(client, header)
             else:
@@ -148,6 +151,7 @@ class Server:
                 self.send_package(client, header)
             self.socket.settimeout(None)
         except sk.timeout as e:
+            # The timeout is over
             self.socket.settimeout(None)
             print("The timeout is over. Something went wrong...\n")
 
@@ -161,7 +165,7 @@ class Server:
             self.socket.settimeout(self.timeout)
             while True:
                 error = False
-                print("The Server is ready to receive the file from the Client.\n")
+                print("The Server is ready to receive the file from the Client.")
                 buffer_reader_size = 16_384
                 file_name = FileNameFactory.get_file_name(file, message['file_name'], self.path)
                 tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
@@ -177,7 +181,7 @@ class Server:
                         md5 = Util.update_md5(md5, base64.b64decode(data_json['metadata']))
                         res = Util.get_digest(md5)
                         if not data_json['status']:
-                            print("The status is false. Something went wrong. Exit from the upload\n")
+                            print("The status is false. Something went wrong. Exit from the upload")
                             error = True
                             break
                         elif checksum != res:
@@ -203,16 +207,17 @@ class Server:
                                                        "Not all packages have been arrived".encode()),
                                                        "Not all packages have been arrived".encode())
             else:
-                print('\n\r All packages have been saved, the File is now available in the path : ' +
-                      os.path.join(self.path, str(file_name)) + "\n")
+                print('All packages have been saved, the File is now available in the path : ' +
+                      os.path.join(self.path, str(file_name)))
             self.send_package(client, ack)
             self.socket.settimeout(None)
         except sk.timeout as e:
+            # The timeout is over
             self.socket.settimeout(None)
             error_h = HeaderFactory.build_error_header(Util.get_hash_with_metadata("Socket Timeout".encode()),
                                                        "Socket Timeout".encode())
             self.send_package(client, error_h)
-            print("The timeout is over. Something went wrong.\n")
+            print("The timeout is over. Something went wrong.")
 
     # Argument : self
     # Argument : destination
@@ -234,6 +239,7 @@ class Server:
     def launch_server(self):
         while True:
             # The server wait for a message receive from another Host
+            self.socket.settimeout(None)
             message, client = self.socket.recvfrom(4096)
             header = json.loads(message.decode())  # Decoding of the file and parsing It in to the JSON format
             operation = header['operation']  # Get the Operations requested
