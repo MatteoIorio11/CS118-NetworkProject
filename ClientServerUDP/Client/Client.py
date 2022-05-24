@@ -104,6 +104,7 @@ class Client:
             # not all packs have been arrived
 
     def upload(self, file):
+        tries = 1 # How much time the Client has tried to send the package to the Server.
         while True:
             if file in os.listdir(self.path):
                 buffer_size = self.buffer_size
@@ -148,6 +149,10 @@ class Client:
             final_ack_json = json.loads(final_ack.decode())
             if not final_ack_json['status']:
                 print("\nSomething went wrong during the upload trying again...\n")
+                tries = tries + 1
+                if tries > 5:
+                    print("Tried five times. EXIT THE OPERATION...\n")
+                    break
                 time.sleep(0.5)
             else:
                 print("\nFile correctly uploaded!\n")

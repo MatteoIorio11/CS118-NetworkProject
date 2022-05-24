@@ -1,1 +1,1 @@
-{"address": "localhost", "buffer_size": 8192, "port": 20000, "time_to_sleep": 0.001, "path": "files", "timeout": 100}
+{"address": "localhost", "buffer_size": 8192, "port": 20000, "time_to_sleep": 0.001, "path": "files", "timeout": 10}

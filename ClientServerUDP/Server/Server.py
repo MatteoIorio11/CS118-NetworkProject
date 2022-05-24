@@ -1,5 +1,7 @@
 import hashlib
 import signal
+import socket
+
 from HeaderFactory import HeaderFactory
 from FileNameFactory import FileNameFactory
 from Operation import Operation
@@ -52,6 +54,7 @@ class Server:
     buffer_size = 0                             # How much is big the buffer for reading files
     time_to_sleep = 0                           # How much time the Server has to sleep before to send another package
     socket = 0                                  # Server's socket
+    timeout = 0
     path = os.path.join(os.getcwd(), 'Server')  #
     menu = " Hi, This is the UDP Server. Here are the possible operations that you can do: \n" \
            " 1) Get the list of all my files \n" \
@@ -70,7 +73,7 @@ class Server:
         self.time_to_sleep = dictionary['time_to_sleep']
         self.path = os.path.join(self.path, dictionary['path'])
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
-        self.socket.settimeout(dictionary['timeout'])
+        self.timeout = dictionary['timeout']
         signal.signal(signal.SIGINT, self.close_socket)
 
     def close_socket(self, signum, frame):
@@ -106,41 +109,47 @@ class Server:
     # This method read multiple chunks of the selected file, after every chunk
     # the Server send It to the Client. The chunk size is 8192 bytes
     def download(self, file, client):
-        if file in os.listdir(self.path):
-            print('Sending the file ' + str(file) + ' to the destination.\n')
-            file_size = math.ceil(os.path.getsize(os.path.join(self.path, file))/self.buffer_size)
-            header = HeaderFactory.build_ack_header_wchecksum(Util.get_hash_with_metadata(str(file_size).encode()),
-                                                              str(file_size).encode())
-            self.send_package(client, header)
-            time.sleep(self.time_to_sleep)
-            md5_hash = hashlib.md5()
-            with open(os.path.join(self.path, file), 'rb') as handle:
-                byte = handle.read(self.buffer_size)   # Read a buffer size
-                status_download = 1
-                md5_hash = Util.update_md5(md5_hash, byte)
-                while byte:
-                    percentage = Util.get_percentage(status_download, file_size)
-                    print("{:03d}".format(percentage), "%", end='\r')
-                    header = HeaderFactory.build_operation_header_wsize(Operation.SENDING_FILE.value, file,
-                                                                        Util.get_digest(md5_hash),
-                                                                        self.buffer_size, byte)
-                    self.send_package(client, header)
-                    time.sleep(self.time_to_sleep)
+        try:
+            self.socket.settimeout(self.timeout)
+            if file in os.listdir(self.path):
+                print('Sending the file ' + str(file) + ' to the destination.\n')
+                file_size = math.ceil(os.path.getsize(os.path.join(self.path, file))/self.buffer_size)
+                header = HeaderFactory.build_ack_header_wchecksum(Util.get_hash_with_metadata(str(file_size).encode()),
+                                                                  str(file_size).encode())
+                self.send_package(client, header)
+                time.sleep(self.time_to_sleep)
+                md5_hash = hashlib.md5()
+                with open(os.path.join(self.path, file), 'rb') as handle:
                     byte = handle.read(self.buffer_size)   # Read a buffer size
-                    status_download = status_download + 1
+                    status_download = 1
                     md5_hash = Util.update_md5(md5_hash, byte)
-            md5_hash = Util.update_md5(md5_hash, 'ACK'.encode())
-            header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value,
-                                                                    Util.get_digest(md5_hash),
-                                                                    'ACK'.encode())  # Send the bytes read to the Client
-            print('\n\r All packages have been sent to the client.')
-            self.send_package(client, header)
-        else:
-            header = HeaderFactory.build_error_header(
-                                    Util.get_hash_with_metadata(
-                                        "The input file does not exist in the directory".encode()),
-                                    "The input file does not exist in the directory".encode())
-            self.send_package(client, header)
+                    while byte:
+                        percentage = Util.get_percentage(status_download, file_size)
+                        print("{:03d}".format(percentage), "%", end='\r')
+                        header = HeaderFactory.build_operation_header_wsize(Operation.SENDING_FILE.value, file,
+                                                                            Util.get_digest(md5_hash),
+                                                                            self.buffer_size, byte)
+                        self.send_package(client, header)
+                        time.sleep(self.time_to_sleep)
+                        byte = handle.read(self.buffer_size)   # Read a buffer size
+                        status_download = status_download + 1
+                        md5_hash = Util.update_md5(md5_hash, byte)
+                md5_hash = Util.update_md5(md5_hash, 'ACK'.encode())
+                header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value,
+                                                                        Util.get_digest(md5_hash),
+                                                                        'ACK'.encode())  # Send the bytes read to the Client
+                print('\n\r All packages have been sent to the client.')
+                self.send_package(client, header)
+            else:
+                header = HeaderFactory.build_error_header(
+                                        Util.get_hash_with_metadata(
+                                            "The input file does not exist in the directory".encode()),
+                                        "The input file does not exist in the directory".encode())
+                self.send_package(client, header)
+            self.socket.settimeout(None)
+        except sk.timeout as e:
+            self.socket.settimeout(None)
+            print("The timeout is over. Something went wrong...\n")
 
     # Argument : self
     # Argument : file
@@ -148,51 +157,62 @@ class Server:
     # Return
     # This method write the metadata in input inside the new file named : file.
     def upload(self, file, message, client):
-        while True:
-            error = False
-            print("The Server is ready to receive the file from the Client.\n")
-            buffer_reader_size = 16_384
-            file_name = FileNameFactory.get_file_name(file, message['file_name'], self.path)        
-            tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
-            cont_packs = 0
-            header = HeaderFactory.build_ack_header()
-            self.send_package(client, header)
-            md5 = hashlib.md5()
-            with open(os.path.join(self.path, file_name), 'wb') as f:
-                while True:
-                    data = self.socket.recv(buffer_reader_size)
-                    data_json = json.loads(data.decode())
-                    checksum = data_json['checksum']
-                    md5 = Util.update_md5(md5, base64.b64decode(data_json['metadata']))
-                    res = Util.get_digest(md5)
-                    if not data_json['status']:
-                        raise Exception(base64.b64decode(data_json['metadata']))
-                    elif checksum != res:
-                        print("The checksum is no correct..")
-                        error = True
-                        ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
-                                                               "Not all packages have been arrived".encode()),
-                                                               "Not all packages have been arrived".encode())
-                        self.send_package(client, ack)
-                        break
-                    if data_json['operation'] == Operation.END_FILE.value:
-                        break
-                    else:
-                        cont_packs += 1
-                    file = base64.b64decode(data_json['metadata'])
-                    f.write(file)
-            if not error:
-                break
-        ack = HeaderFactory.build_ack_header()
-        if tot_packs != cont_packs:
-            print("Not all packages have been arrived")
-            ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
-                                                   "Not all packages have been arrived".encode()),
-                                                   "Not all packages have been arrived".encode())
-        else:
-            print('\n\r All packages have been saved, the File is now available in the path : ' +
-                  os.path.join(self.path, str(file_name)))
-        self.send_package(client, ack)
+        try:
+            self.socket.settimeout(self.timeout)
+            while True:
+                error = False
+                print("The Server is ready to receive the file from the Client.\n")
+                buffer_reader_size = 16_384
+                file_name = FileNameFactory.get_file_name(file, message['file_name'], self.path)
+                tot_packs = int(base64.b64decode(message['metadata']).decode())   # tot packs that I should receive
+                cont_packs = 0
+                header = HeaderFactory.build_ack_header()
+                self.send_package(client, header)
+                md5 = hashlib.md5()
+                with open(os.path.join(self.path, file_name), 'wb') as f:
+                    while True:
+                        data = self.socket.recv(buffer_reader_size)
+                        data_json = json.loads(data.decode())
+                        checksum = data_json['checksum']
+                        md5 = Util.update_md5(md5, base64.b64decode(data_json['metadata']))
+                        res = Util.get_digest(md5)
+                        if not data_json['status']:
+                            print("The status is false. Something went wrong. Exit from the upload\n")
+                            error = True
+                            break
+                        elif checksum != res:
+                            print("The checksum is no correct..")
+                            error = True
+                            ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
+                                                                   "Not all packages have been arrived".encode()),
+                                                                   "Not all packages have been arrived".encode())
+                            self.send_package(client, ack)
+                            break
+                        if data_json['operation'] == Operation.END_FILE.value:
+                            break
+                        else:
+                            cont_packs += 1
+                        file = base64.b64decode(data_json['metadata'])
+                        f.write(file)
+                if not error:
+                    break
+            ack = HeaderFactory.build_ack_header()
+            if tot_packs != cont_packs:
+                print("Not all packages have been arrived")
+                ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
+                                                       "Not all packages have been arrived".encode()),
+                                                       "Not all packages have been arrived".encode())
+            else:
+                print('\n\r All packages have been saved, the File is now available in the path : ' +
+                      os.path.join(self.path, str(file_name)) + "\n")
+            self.send_package(client, ack)
+            self.socket.settimeout(None)
+        except sk.timeout as e:
+            self.socket.settimeout(None)
+            error_h = HeaderFactory.build_error_header(Util.get_hash_with_metadata("Socket Timeout".encode()),
+                                                       "Socket Timeout".encode())
+            self.send_package(client, error_h)
+            print("The timeout is over. Something went wrong.\n")
 
     # Argument : self
     # Argument : destination
