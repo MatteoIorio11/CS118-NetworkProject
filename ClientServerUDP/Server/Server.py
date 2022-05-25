@@ -144,6 +144,7 @@ class Server:
                 print(' -> All packages have been sent to the client.')
                 self.send_package(client, header)
             else:
+                print(' -> The Client requested a file that does not exist in the Directory. Sending an Error')
                 header = HeaderFactory.build_error_header(
                                         Util.get_hash_with_metadata(
                                             "The input file does not exist in the directory".encode()),
