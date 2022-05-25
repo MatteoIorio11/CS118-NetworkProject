@@ -42,10 +42,8 @@ class Client:
             data_json = json.loads(data.decode())
             res = Util.get_hash_with_metadata(base64.b64decode(data_json['metadata']))
             if not data_json['status'] or res != data_json['checksum']:    # if something whent wrong
-                print(data_json['status'])
-                print(res)
-                print(data_json['checksum'])
-                raise Exception(base64.b64decode(data_json['metadata']))
+                print('Error ', base64.b64decode(data_json['metadata']))
+                return
             files = base64.b64decode(data_json['metadata'])    # decode files name
             self.sock.settimeout(None)
             return files.decode()
@@ -66,14 +64,14 @@ class Client:
             if not data_json['status'] or \
                     Util.get_hash_with_metadata(base64.b64decode(data_json['metadata'])) != data_json['checksum']:
                 # if something whent wrong
-                raise Exception(base64.b64decode(data_json['metadata']))
+                print('Error ', base64.b64decode(data_json['metadata']))
             menu = base64.b64decode(data_json['metadata'])    # decode menu
             self.sock.settimeout(None)
             return menu.decode()
         except sk.timeout as e:
             self.sock.settimeout(None)
             print(" ---- SOCKET TIMEOUT ----- ")
-            raise Exception("The Client can't get the Menu. Maybe the Server is OFFLINE.")
+            print("The Client can't get the Menu. Maybe the Server is OFFLINE.")
 
     def download_file(self, file_name):
         try:
@@ -87,7 +85,7 @@ class Client:
                 ack = self.sock.recv(4096)    # waiting for an ack from the server
                 ack_json = json.loads(ack.decode())
                 if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value:
-                    raise Exception(base64.b64decode(ack_json['metadata']).decode())
+                    print('Error ', base64.b64decode(ack_json['metadata']).decode())
                 # now the server is ready to send packets and the client to receive them
                 tot_packs = int(base64.b64decode(ack_json['metadata']).decode())   # tot packs that i should receive
                 buffer_size = 12_000
@@ -101,7 +99,7 @@ class Client:
                         calculate_hash = Util.get_digest(md5_hash)
                         checksum = str(data_json['checksum'])
                         if not data_json['status']:
-                            raise Exception(base64.b64decode(data_json['metadata']))
+                            print('Error ',base64.b64decode(data_json['metadata']))
                         elif calculate_hash != checksum:
                             print("Something went wrong during the download trying again")
                             error = True
@@ -149,7 +147,7 @@ class Client:
                 checksum = ack_json['checksum']
                 if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value\
                         or checksum != Util.get_hash_with_metadata('ACK'.encode()):
-                            raise Exception(base64.b64decode(ack_json['metadata']))
+                            print('Error ',base64.b64decode(ack_json['metadata']))
                 # now the client is ready to send packets and the server to receive them
                 cont_packs = 0
                 print('\n\r Sending the file %s to the destination' % str(file))
