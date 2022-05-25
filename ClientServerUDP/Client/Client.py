@@ -133,63 +133,74 @@ class Client:
                     break
                 # not all packs have been arrived
         except sk.timeout as e:
+            self.sock.settimeout(None)
+            print(" ---- SOCKET TIMEOUT ----- ")
             print("Socket timeout. EXIT THE OPERATION...")
 
     def upload(self, file):
         tries = 1 # How much time the Client has tried to send the package to the Server.
-        while True:
-            if file in os.listdir(self.path):
-                buffer_size = self.buffer_size
-                tot_packs = math.ceil(os.path.getsize(os.path.join(self.path, file))/buffer_size)
-                upload_request = HeaderFactory.build_operation_header_wfile(Operation.UPLOAD.value, file,
-                                                            Util.get_hash_with_metadata(str(tot_packs).encode()),
-                                                            str(tot_packs).encode())    # creating header for uploading file
-                self.send(upload_request)
-                ack = self.sock.recv(4096)    # waiting for an ack from the server
-                ack_json = json.loads(ack.decode())
-                checksum = ack_json['checksum']
-                if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value\
-                        or checksum != Util.get_hash_with_metadata('ACK'.encode()):
-                            print('Error in the Upload. Something went wrong please try again...')
-                            return
-                # now the client is ready to send packets and the server to receive them
-                cont_packs = 0
-                print('\n\r Sending the file %s to the destination' % str(file))
-                md5 = hashlib.md5()
-                with open(os.path.join(self.path, file), 'rb') as handle:
-                    byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
-                    cont_packs += 1
-                    md5 = Util.update_md5(md5, byte)
-                    while byte:
-                        header = HeaderFactory.build_operation_header_wchecksum(Operation.UPLOAD.value,
-                                                            Util.get_digest(md5),
-                                                            byte)  # Send the read bytes to the Client
-                        self.send(header)
-                        percent = Util.get_percentage(cont_packs, tot_packs)
+        try:
+            self.sock.settimeout(self.timeout)
+            while True:
+                if file in os.listdir(self.path):
+                    buffer_size = self.buffer_size
+                    tot_packs = math.ceil(os.path.getsize(os.path.join(self.path, file))/buffer_size)
+                    upload_request = HeaderFactory.build_operation_header_wfile(Operation.UPLOAD.value, file,
+                                                                Util.get_hash_with_metadata(str(tot_packs).encode()),
+                                                                str(tot_packs).encode())    # creating header for uploading file
+                    self.send(upload_request)
+                    ack = self.sock.recv(4096)    # waiting for an ack from the server
+                    ack_json = json.loads(ack.decode())
+                    checksum = ack_json['checksum']
+                    if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value\
+                            or checksum != Util.get_hash_with_metadata('ACK'.encode()):
+                                print('Error in the Upload. Something went wrong please try again...')
+                                return
+                    # now the client is ready to send packets and the server to receive them
+                    cont_packs = 0
+                    print('\n\r Sending the file %s to the destination' % str(file))
+                    md5 = hashlib.md5()
+                    with open(os.path.join(self.path, file), 'rb') as handle:
+                        byte = handle.read(buffer_size)   #Read buffer_size bytes from the file
                         cont_packs += 1
-                        print("{:03d}".format(percent), "%", end='\r')
-                        byte = handle.read(buffer_size)   # Read buffer_size bytes from the file
                         md5 = Util.update_md5(md5, byte)
-                md5 = Util.update_md5(md5, 'ACK'.encode())
-                header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value,
-                                                    Util.get_digest(md5),
-                                                     "ACK".encode())  # Telling to the server that the file is complete
-                self.send(header)
-            else:
-                print("\nThe input file does not exit!\n")
-                break
-            final_ack = self.sock.recv(4096)    # waiting for an ack from the server
-            final_ack_json = json.loads(final_ack.decode())
-            if not final_ack_json['status']:
-                print("\nSomething went wrong during the upload trying again...\n")
-                tries = tries + 1
-                if tries > 5:
-                    print("Tried five times. EXIT THE OPERATION...\n")
+                        while byte:
+                            header = HeaderFactory.build_operation_header_wchecksum(Operation.UPLOAD.value,
+                                                                Util.get_digest(md5),
+                                                                byte)  # Send the read bytes to the Client
+                            self.send(header)
+                            percent = Util.get_percentage(cont_packs, tot_packs)
+                            cont_packs += 1
+                            print("{:03d}".format(percent), "%", end='\r')
+                            byte = handle.read(buffer_size)   # Read buffer_size bytes from the file
+                            md5 = Util.update_md5(md5, byte)
+                    md5 = Util.update_md5(md5, 'ACK'.encode())
+                    header = HeaderFactory.build_operation_header_wchecksum(Operation.END_FILE.value,
+                                                        Util.get_digest(md5),
+                                                         "ACK".encode())  # Telling the server that the file is complete
+                    self.send(header)
+                else:
+                    self.sock.settimeout(None)
+                    print("\nThe input file does not exit!\n")
                     break
-                time.sleep(0.5)
-            else:
-                print("\nFile correctly uploaded!\n")
-                break
+                final_ack = self.sock.recv(4096)    # waiting for an ack from the server
+                final_ack_json = json.loads(final_ack.decode())
+                if not final_ack_json['status']:
+                    print("\nSomething went wrong during the upload trying again...\n")
+                    tries = tries + 1
+                    if tries > 5:
+                        self.sock.settimeout(None)
+                        print("Tried five times. EXIT THE OPERATION...\n")
+                        break
+                    time.sleep(0.5)
+                else:
+                    self.sock.settimeout(None)
+                    print("\nFile correctly uploaded!\n")
+                    break
+        except sk.timeout as e:
+            self.sock.settimeout(None)
+            print(" ---- SOCKET TIMEOUT ----- ")
+            print("The timeout is over, exit the operation...")
 
     def send(self, message):
         self.sock.sendto(message.encode(), (self.server_address, self.port))
