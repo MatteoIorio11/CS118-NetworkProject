@@ -239,7 +239,7 @@ class Server:
         header = HeaderFactory.build_operation_header_wchecksum(Operation.ACK.value,
                                                                 Util.get_hash_with_metadata(self.menu.encode()),
                                                                 self.menu.encode())
-        # self.send_package(destination, header)
+        self.send_package(destination, header)
 
     # Argument : self
     # Main method of the Server. Here is where all the Client's request are managed
