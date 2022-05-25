@@ -72,14 +72,14 @@ class Server:
         self.buffer_size = dictionary['buffer_size']
         self.time_to_sleep = dictionary['time_to_sleep']
         self.__check_directory(dictionary['path'])
-        self.path = os.path.join(self.path, dictionary['path'])
         self.socket = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
         self.timeout = dictionary['timeout']
         signal.signal(signal.SIGINT, self.close_socket)
 
     def __check_directory(self, name):
         if not os.path.exists(os.path.join(self.path, name)):
-            os.mkdir(self.path, name)
+            os.mkdir(os.path.join(self.path, name))
+        self.path = os.path.join(self.path, name)
 
     def close_socket(self, signum, frame):
         print("The Server is closing...\n")

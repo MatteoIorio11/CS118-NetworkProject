@@ -22,9 +22,14 @@ class Client:
             dictionary = json.load(file)
         self.buffer_size = dictionary['buffer_size']
         self.time_to_sleep = dictionary['time_to_sleep']
-        self.path = os.path.join(self.path, dictionary['path'])
+        self.__check_directory(dictionary['path'])
         self.timeout = dictionary['timeout']
         self.sock = sk.socket(sk.AF_INET, sk.SOCK_DGRAM)
+
+    def __check_directory(self, name):
+        if not os.path.exists(os.path.join(self.path, name)):
+            os.mkdir(os.path.join(self.path, name))
+        self.path = os.path.join(self.path, name)
 
     def set_server_adress(self, server_address, port):
         # storing the IP and Port of the server
