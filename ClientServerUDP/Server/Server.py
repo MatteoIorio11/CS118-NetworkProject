@@ -200,9 +200,13 @@ class Server:
                         f.write(file)
                 if not error:
                     break
+                else:
+                     os.remove(os.path.join(self.path, file_name))
+
             ack = HeaderFactory.build_ack_header()
             if tot_packs != cont_packs:
                 print("Not all packages have been arrived")
+                os.remove(os.path.join(self.path, file_name))
                 ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
                                                        "Not all packages have been arrived".encode()),
                                                        "Not all packages have been arrived".encode())
@@ -212,11 +216,10 @@ class Server:
             self.send_package(client, ack)
             self.socket.settimeout(None)
         except sk.timeout as e:
+            if file_name in os.listdir(self.path):
+                os.remove(os.path.join(self.path, file_name))
             # The timeout is over
             self.socket.settimeout(None)
-            error_h = HeaderFactory.build_error_header(Util.get_hash_with_metadata("Socket Timeout".encode()),
-                                                       "Socket Timeout".encode())
-            self.send_package(client, error_h)
             print("The timeout is over. Something went wrong.")
 
     # Argument : self
@@ -238,6 +241,7 @@ class Server:
     # For every message received the served send an Operation.ACK to the Client.
     def launch_server(self):
         while True:
+            print("AAA")
             # The server wait for a message receive from another Host
             self.socket.settimeout(None)
             message, client = self.socket.recvfrom(4096)
@@ -249,6 +253,7 @@ class Server:
 
             # First Operations : GET FILES
             elif operation == Operation.GET_FILES.value:
+                print("FILES")
                 self.get_files(client)
 
             elif operation == Operation.DOWNLOAD.value:

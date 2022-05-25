@@ -145,7 +145,7 @@ class Client:
                         header = HeaderFactory.build_operation_header_wchecksum(Operation.UPLOAD.value,
                                                             Util.get_digest(md5),
                                                             byte)  # Send the read bytes to the Client
-                        self.send(header)
+                        #self.send(header)
                         percent = Util.get_percentage(cont_packs, tot_packs)
                         cont_packs += 1
                         print("{:03d}".format(percent), "%", end='\r')
