@@ -60,14 +60,18 @@ class Client:
                                                       "ACK".encode())    # create header for getting the menu
         self.send(header)
         try:
+            self.sock.settimeout(self.timeout)
             data = self.sock.recv(4096)
             data_json = json.loads(data.decode())
             if not data_json['status'] or \
-                    Util.get_hash_with_metadata(base64.b64decode(data_json['metadata'])) != data_json['checksum']:    # if something whent wrong
+                    Util.get_hash_with_metadata(base64.b64decode(data_json['metadata'])) != data_json['checksum']:
+                # if something whent wrong
                 raise Exception(base64.b64decode(data_json['metadata']))
-            menu = base64.b64decode(data_json['metadata'])    #decode menu
+            menu = base64.b64decode(data_json['metadata'])    # decode menu
+            self.sock.settimeout(None)
             return menu.decode()
         except sk.timeout as e:
+            self.sock.settimeout(None)
             print(" ---- SOCKET TIMEOUT ----- ")
             raise Exception("The Client can't get the Menu. Maybe the Server is OFFLINE.")
 
@@ -76,7 +80,7 @@ class Client:
             tries = 1
             self.sock.settimeout(self.timeout)
             while True:
-                error = False;
+                error = False
                 header = HeaderFactory.build_operation_header_wfile(Operation.DOWNLOAD.value, file_name,
                                                                     Util.get_hash_with_metadata('ACK'.encode()), "ACK".encode())
                 self.send(header)

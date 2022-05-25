@@ -24,7 +24,6 @@ def main():
                 print("Wrong number")
         
     except Exception as info:
-        print("ciao")
         print(info)
     finally:
         client.close_connection()
