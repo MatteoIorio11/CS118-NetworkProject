@@ -150,7 +150,7 @@ class Client:
                 checksum = ack_json['checksum']
                 if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value\
                         or checksum != Util.get_hash_with_metadata('ACK'.encode()):
-                            print('Error ',base64.b64decode(ack_json['metadata']))
+                            print('Error in the Upload. Something went wrong please try again...')
                             return
                 # now the client is ready to send packets and the server to receive them
                 cont_packs = 0
