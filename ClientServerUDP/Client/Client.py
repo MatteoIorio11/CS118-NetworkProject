@@ -36,30 +36,41 @@ class Client:
                                                     Util.get_hash_with_metadata('ACK'.encode()),
                                                     "ACK".encode())    # create header for getting files
         self.send(header)
-        data = self.sock.recv(4096)
-        data_json = json.loads(data.decode())
-        res = Util.get_hash_with_metadata(base64.b64decode(data_json['metadata']))
-        if not data_json['status'] or res != data_json['checksum']:    # if something whent wrong
-            print(data_json['status'])
-            print(res)
-            print(data_json['checksum'])
-            raise Exception(base64.b64decode(data_json['metadata']))
-        files = base64.b64decode(data_json['metadata'])    # decode files name
-        return files.decode()
+        try :
+            self.sock.settimeout(self.timeout)
+            data = self.sock.recv(4096)
+            data_json = json.loads(data.decode())
+            res = Util.get_hash_with_metadata(base64.b64decode(data_json['metadata']))
+            if not data_json['status'] or res != data_json['checksum']:    # if something whent wrong
+                print(data_json['status'])
+                print(res)
+                print(data_json['checksum'])
+                raise Exception(base64.b64decode(data_json['metadata']))
+            files = base64.b64decode(data_json['metadata'])    # decode files name
+            self.sock.settimeout(None)
+            return files.decode()
+        except sk.timeout as e:
+            self.sock.settimeout(None)
+            print(" ---- SOCKET TIMEOUT ----")
+            return "Error in the operation, please try again."
         
     def get_menu(self):
         header = HeaderFactory.build_operation_header_wchecksum(Operation.OPEN_CONNECTION.value,
                                                       Util.get_hash_with_metadata('ACK'.encode()),
                                                       "ACK".encode())    # create header for getting the menu
         self.send(header)
-        data = self.sock.recv(4096)
-        data_json = json.loads(data.decode())
-        if not data_json['status'] or \
-                Util.get_hash_with_metadata(base64.b64decode(data_json['metadata'])) != data_json['checksum']:    # if something whent wrong
-            raise Exception(base64.b64decode(data_json['metadata']))
-        menu = base64.b64decode(data_json['metadata'])    #decode menu
-        return menu.decode()
-    
+        try:
+            data = self.sock.recv(4096)
+            data_json = json.loads(data.decode())
+            if not data_json['status'] or \
+                    Util.get_hash_with_metadata(base64.b64decode(data_json['metadata'])) != data_json['checksum']:    # if something whent wrong
+                raise Exception(base64.b64decode(data_json['metadata']))
+            menu = base64.b64decode(data_json['metadata'])    #decode menu
+            return menu.decode()
+        except sk.timeout as e:
+            print(" ---- SOCKET TIMEOUT ----- ")
+            raise Exception("The Client can't get the Menu. Maybe the Server is OFFLINE.")
+
     def download_file(self, file_name):
         try:
             tries = 1
@@ -119,7 +130,6 @@ class Client:
         except sk.timeout as e:
             print("Socket timeout. EXIT THE OPERATION...")
 
-
     def upload(self, file):
         tries = 1 # How much time the Client has tried to send the package to the Server.
         while True:
@@ -148,7 +158,7 @@ class Client:
                         header = HeaderFactory.build_operation_header_wchecksum(Operation.UPLOAD.value,
                                                             Util.get_digest(md5),
                                                             byte)  # Send the read bytes to the Client
-                        #self.send(header)
+                        self.send(header)
                         percent = Util.get_percentage(cont_packs, tot_packs)
                         cont_packs += 1
                         print("{:03d}".format(percent), "%", end='\r')

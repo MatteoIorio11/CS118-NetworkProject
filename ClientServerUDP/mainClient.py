@@ -8,7 +8,6 @@ def main():
         menu = client.get_menu()
         while True:
             print(menu)
-            print("AAAA")
             operation = int(input("Select an operation among the ones above: "))
             if operation == 1:
                 print(client.get_files_on_server())
