@@ -40,6 +40,9 @@ class Client:
         data_json = json.loads(data.decode())
         res = Util.get_hash_with_metadata(base64.b64decode(data_json['metadata']))
         if not data_json['status'] or res != data_json['checksum']:    # if something whent wrong
+            print(data_json['status'])
+            print(res)
+            print(data_json['checksum'])
             raise Exception(base64.b64decode(data_json['metadata']))
         files = base64.b64decode(data_json['metadata'])    # decode files name
         return files.decode()
@@ -132,7 +135,7 @@ class Client:
                 checksum = ack_json['checksum']
                 if not ack_json['status'] or ack_json['operation'] != Operation.ACK.value\
                         or checksum != Util.get_hash_with_metadata('ACK'.encode()):
-                    raise Exception(base64.b64decode(ack_json['metadata']))
+                            raise Exception(base64.b64decode(ack_json['metadata']))
                 # now the client is ready to send packets and the server to receive them
                 cont_packs = 0
                 print('\n\r Sending the file %s to the destination' % str(file))

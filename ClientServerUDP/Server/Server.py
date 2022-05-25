@@ -101,6 +101,7 @@ class Server:
                                                                 Util.get_hash_with_metadata(metadata.encode()),
                                                                 metadata.encode())
         self.send_package(client, header)
+        print(Util.get_hash_with_metadata(metadata.encode()))
         print('Sending all the files in the Directory...')
         return metadata
 
@@ -161,6 +162,7 @@ class Server:
     # Return
     # This method write the metadata in input inside the new file named : file.
     def upload(self, file, message, client):
+        tries = 1
         try:
             self.socket.settimeout(self.timeout)
             while True:
@@ -186,6 +188,7 @@ class Server:
                             break
                         elif checksum != res:
                             print("The checksum is no correct..")
+                            tries = tries + 1
                             error = True
                             ack = HeaderFactory.build_error_header(Util.get_hash_with_metadata(
                                                                    "Not all packages have been arrived".encode()),
@@ -200,9 +203,9 @@ class Server:
                         f.write(file)
                 if not error:
                     break
-                else:
+                elif tries > 5:
                      os.remove(os.path.join(self.path, file_name))
-
+                     return
             ack = HeaderFactory.build_ack_header()
             if tot_packs != cont_packs:
                 print("Not all packages have been arrived")
