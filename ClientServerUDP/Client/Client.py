@@ -72,7 +72,7 @@ class Client:
         except sk.timeout as e:
             self.sock.settimeout(None)
             print(" ---- SOCKET TIMEOUT ----- ")
-            print("The Client can't get the Menu. Maybe the Server is OFFLINE.")
+            raise Exception("The Client can't get the Menu. Maybe the Server is OFFLINE.")
 
     def download_file(self, file_name):
         try:
@@ -128,12 +128,14 @@ class Client:
                 print("\nNot all packets have been arrived downloading again...\n")
                 tries = tries + 1
                 if tries > 5:
+                    os.remove(os.path.join(self.path, file_name))
                     print("Tried five times. EXIT THE OPERATION...")
                     self.sock.settimeout(None)
                     break
                 # not all packs have been arrived
         except sk.timeout as e:
             self.sock.settimeout(None)
+            os.remove(os.path.join(self.path, file_name))
             print(" ---- SOCKET TIMEOUT ----- ")
             print("Socket timeout. EXIT THE OPERATION...")
 
